@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<venues>
+  <venue id="100">
+    <venuec><![CDATA[大埔公共圖書館]]></venuec>
+    <venuee><![CDATA[Tai Po Public Library]]></venuee>
+    <latitude />
+    <longitude />
+  </venue>
+  <venue id="101">
+    <venuec><![CDATA[屏山天水圍公共圖書館]]></venuec>
+    <venuee><![CDATA[Ping Shan Tin Shui Wai Public Library]]></venuee>
+    <latitude />
+    <longitude />
+  </venue>
+  <venue id="102">
+    <venuec><![CDATA[土瓜灣公共圖書館]]></venuec>
+    <venuee><![CDATA[To Kwa Wan Public Library]]></venuee>
+    <latitude />
+    <longitude />
+  </venue>
+</venues>
