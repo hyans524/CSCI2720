@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 // Get all venues
 router.get('/', async (req, res) => {
     try {
-        const venues = await Venue.find().populate('events');
+        const venues = await Venue.find();
         res.json(venues);
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
 // Get single venue
 router.get('/:id', async (req, res) => {
     try {
-        const venue = await Venue.findById(req.params.id).populate('events');
+        const venue = await Venue.findById(req.params.id);
         if (!venue) {
             return res.status(404).json({ message: 'Venue not found' });
         }

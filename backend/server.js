@@ -6,6 +6,7 @@ const xmlParser = require('./utils/xmlParser');
 const Venue = require('./models/Venue');
 const Event = require('./models/Event');
 const User = require('./models/User');
+const bson = require('bson');
 
 const app = express();
 
@@ -21,6 +22,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/venue-eve
     .then(() => console.log('Connected to MongoDB'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+const db = mongoose.connection;
 // Import routes
 const venueRoutes = require('./routes/venues');
 const eventRoutes = require('./routes/events');
@@ -37,7 +39,8 @@ app.post('/api/init-data', async (req, res) => {
         // Clear existing data
         await Promise.all([
             Venue.deleteMany({}),
-            Event.deleteMany({})
+            Event.deleteMany({}),
+            User.deleteMany({})
         ]);
 
         // Get data from XML files
@@ -99,6 +102,12 @@ app.post('/api/init-data', async (req, res) => {
             venuesCount: savedVenues.length,
             eventsCount: savedEvents.length
         });
+
+        var json1 = require("./data/venue-events.users.json")
+        json1 = bson.EJSON.parse(JSON.stringify(json1))
+        db.collection("users").insertMany(json1)
+
+
     } catch (error) {
         console.error('Error initializing data:', error);
         res.status(500).json({ error: 'Error initializing data', details: error.message });
