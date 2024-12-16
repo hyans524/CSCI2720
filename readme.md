@@ -52,7 +52,7 @@ Backend:
 2. Setup Steps:
    a) Clone repository:
       ```bash
-      git clone [repository-url]
+      git clone https://github.com/hyans524/CSCI2720/
       ```
 
    b) Start servers:
