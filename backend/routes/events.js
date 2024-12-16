@@ -43,9 +43,8 @@ router.post('/', auth.adminAuth, async (req, res) => {
         title: req.body.title,
         description: req.body.description,
         presenter: req.body.presenter,
-        price: req.body.price,
         venue: req.body.venue,
-        dates: req.body.dates
+        date: req.body.date
     });
 
     try {

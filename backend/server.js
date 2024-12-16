@@ -14,12 +14,12 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/venue-events', {
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/venue-events', {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+    .then(() => console.log('Connected to MongoDB'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
 // Import routes
 const venueRoutes = require('./routes/venues');
@@ -43,7 +43,6 @@ app.post('/api/init-data', async (req, res) => {
         // Get data from XML files
         const venues = await xmlParser.getVenues();
         const events = await xmlParser.getEvents();
-        const eventDates = await xmlParser.getEventDates();
 
         console.log('Venues loaded:', venues.length);
 
@@ -71,11 +70,6 @@ app.post('/api/init-data', async (req, res) => {
         let savedEvents = [];
         if (events.length > 0) {
             for (const event of events) {
-                const eventDatesData = eventDates.find(ed => ed.eventId === event.eventId);
-                const dates = eventDatesData ? eventDatesData.dates.map(d => ({
-                    date: new Date(d),
-                    time: ''
-                })) : [];
 
                 if (event.venueId && venueMap[event.venueId]) {
                     try {
@@ -84,9 +78,8 @@ app.post('/api/init-data', async (req, res) => {
                             title: event.title,
                             description: event.description,
                             presenter: event.presenter,
-                            price: event.price,
                             venue: venueMap[event.venueId],
-                            dates: dates
+                            date: event.date
                         });
                         const savedEvent = await newEvent.save();
                         savedEvents.push(savedEvent);
@@ -101,7 +94,7 @@ app.post('/api/init-data', async (req, res) => {
 
         console.log('Events saved:', savedEvents.length);
 
-        res.json({ 
+        res.json({
             message: 'Data initialized successfully',
             venuesCount: savedVenues.length,
             eventsCount: savedEvents.length
@@ -115,4 +108,13 @@ app.post('/api/init-data', async (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-}); 
+});
+
+
+// __init
+fetch('http://localhost:5000/api/init-data', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+});
