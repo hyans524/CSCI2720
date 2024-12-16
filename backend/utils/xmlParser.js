@@ -12,11 +12,10 @@ const parser = new xml2js.Parser({
     attrValueProcessors: [xml2js.processors.stripPrefix]
 });
 
-// 預設的香港地區經緯度
-const defaultLocations = {
-    "Tai Po Public Library": { lat: 22.4501, lng: 114.1693 },
-    "Ping Shan Tin Shui Wai Public Library": { lat: 22.4597, lng: 114.0025 },
-    "To Kwa Wan Public Library": { lat: 22.3187, lng: 114.1892 }
+// Default location for Hong Kong Cultural Centre
+const DEFAULT_LOCATION = {
+    lat: 22.2938,
+    lng: 114.1722
 };
 
 // Read and parse XML file
@@ -36,14 +35,14 @@ async function parseXMLFile(filename) {
 async function getVenues() {
     const data = await parseXMLFile('venues.xml');
     const venues = Array.isArray(data.venues.venue) ? data.venues.venue : [data.venues.venue];
+    
     return venues.map(venue => {
         const venueName = venue.venuee || venue.venuec;
-        const defaultLocation = defaultLocations[venueName] || { lat: 22.3193, lng: 114.1694 }; // 預設香港中心位置
         return {
             venueId: venue.$.id,
             venueName: venueName,
-            latitude: venue.latitude ? parseFloat(venue.latitude) : defaultLocation.lat,
-            longitude: venue.longitude ? parseFloat(venue.longitude) : defaultLocation.lng,
+            latitude: venue.latitude ? parseFloat(venue.latitude) : DEFAULT_LOCATION.lat,
+            longitude: venue.longitude ? parseFloat(venue.longitude) : DEFAULT_LOCATION.lng,
             address: venue.address || venueName,
             description: venue.description || `${venue.venuec} (${venue.venuee})`
         };
@@ -87,7 +86,7 @@ async function getEventDates() {
             return {
                 eventId: event.$.id,
                 dates: dates.map(date => {
-                    // 處理日期和時間
+                    // Process date and time
                     let dateObj = {};
                     if (typeof date === 'string') {
                         dateObj = {

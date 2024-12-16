@@ -10,9 +10,7 @@ import MainLayout from './layouts/MainLayout';
 import LocationList from './pages/LocationList';
 import LocationMap from './pages/LocationMap';
 import LocationDetail from './pages/LocationDetail';
-import Favorites from './pages/Favorites';
 import Login from './pages/Login';
-import AdminDashboard from './pages/AdminDashboard';
 
 // Theme configuration
 const lightTheme = createTheme({
@@ -54,9 +52,7 @@ function App() {
             <Route path="/locations" element={<LocationList />} />
             <Route path="/map" element={<LocationMap />} />
             <Route path="/location/:id" element={<LocationDetail />} />
-            <Route path="/favorites" element={<Favorites />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/admin/*" element={<AdminDashboard />} />
           </Routes>
         </MainLayout>
       </Router>

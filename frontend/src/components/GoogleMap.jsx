@@ -1,17 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, Typography } from '@mui/material';
-import { Loader } from '@googlemaps/js-api-loader';
+import { 
+  HK_DEFAULT_CENTER, 
+  MAP_ZOOM_LEVELS, 
+  DEFAULT_MAP_CONFIG,
+  loader
+} from '../services/googleMaps';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID;
 
-// 香港的默認中心點
-const HK_CENTER = { lat: 22.3193, lng: 114.1694 };
+// Map style configuration
+const MAP_STYLES = [
+  {
+    featureType: 'poi',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'labels',
+    stylers: [{ visibility: 'on' }],
+  },
+];
 
 function GoogleMapComponent({
   markers = [],
-  center = HK_CENTER,
-  zoom = 11,
+  center = HK_DEFAULT_CENTER,
+  zoom = MAP_ZOOM_LEVELS.TERRITORY,
   onMarkerClick,
 }) {
   const mapRef = useRef(null);
@@ -22,84 +38,66 @@ function GoogleMapComponent({
   useEffect(() => {
     const initMap = async () => {
       try {
-        const container = mapRef.current;
-        console.log('Map container dimensions:', {
-          width: container?.clientWidth,
-          height: container?.clientHeight,
-        });
-
-        const loader = new Loader({
-          apiKey: GOOGLE_MAPS_API_KEY,
-          version: 'beta',
-          libraries: ['places', 'geometry', 'marker'],
-        });
-
-        const google = await loader.load();
-        console.log('Google Maps loaded successfully');
-
-        if (!container) {
-          console.error('Map container not found');
-          return;
+        // Validate API key
+        if (!GOOGLE_MAPS_API_KEY) {
+          throw new Error('Google Maps API key is missing');
         }
 
-        // 確保容器尺寸
+        const container = mapRef.current;
+        if (!container) {
+          throw new Error('Map container not found');
+        }
+
+        // Set container dimensions
         container.style.width = '100%';
         container.style.height = '100%';
         container.style.minHeight = '400px';
 
-        // 初始化地圖
+        // Load Google Maps using shared loader
+        const google = await loader.load();
+
+        // Initialize map with options
         const mapOptions = {
-          center: center || HK_CENTER,
+          ...DEFAULT_MAP_CONFIG,
+          center: center,
           zoom: zoom,
           mapId: MAP_ID,
-          mapTypeControl: true,
-          fullscreenControl: true,
-          streetViewControl: true,
-          zoomControl: true,
-          gestureHandling: 'greedy',
-          // 添加默認的地圖樣式
-          styles: [
-            {
-              featureType: 'poi',
-              elementType: 'labels',
-              stylers: [{ visibility: 'on' }],
-            },
-          ],
+          styles: MAP_STYLES,
         };
 
-        console.log('Creating map with center:', center);
         const map = new google.maps.Map(container, mapOptions);
         mapInstanceRef.current = map;
 
-        // 清除現有標記
+        // Clear existing markers
         markersRef.current.forEach(marker => marker.setMap(null));
         markersRef.current = [];
 
-        // 創建信息窗口
+        // Create info window instance
         const infoWindow = new google.maps.InfoWindow();
 
-        // 添加標記
+        // Load marker library
         const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
         
+        // Process markers
         const bounds = new google.maps.LatLngBounds();
         let validMarkers = 0;
 
         markers.forEach(location => {
-          // 驗證經緯度
+          // Validate coordinates
           const lat = parseFloat(location.lat);
           const lng = parseFloat(location.lng);
           
-          if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+          if (!isValidCoordinates(lat, lng)) {
             console.error('Invalid coordinates for location:', location);
             return;
           }
 
-          console.log('Creating marker at:', { lat, lng });
-          
+          // Create marker with custom pin
           const pinElement = new PinElement({
             background: location.selected ? "#ff4444" : "#1976d2",
             borderColor: location.selected ? "#cc0000" : "#1565c0",
             glyphColor: "#FFFFFF",
+            scale: location.selected ? 1.2 : 1,
             glyph: `${location.eventCount || ''}`,
           });
 
@@ -114,14 +112,14 @@ function GoogleMapComponent({
             content: pinElement.element,
           });
 
+          // Add animation for selected marker
+          if (location.selected) {
+            marker.content.style.animation = 'bounce 0.5s infinite alternate';
+          }
+
+          // Add click event handler
           marker.addEventListener('click', () => {
-            infoWindow.setContent(`
-              <div style="padding: 12px;">
-                <h3 style="margin: 0 0 8px 0; color: #1976d2; font-size: 16px;">${location.name}</h3>
-                <p style="margin: 0 0 4px 0; color: #666;">${location.address}</p>
-                ${location.eventCount ? `<p style="margin: 0; color: #1976d2; font-weight: 500;">${location.eventCount} events</p>` : ''}
-              </div>
-            `);
+            infoWindow.setContent(createInfoWindowContent(location));
             infoWindow.open(map, marker);
             if (onMarkerClick) {
               onMarkerClick(location.id);
@@ -131,27 +129,59 @@ function GoogleMapComponent({
           markersRef.current.push(marker);
         });
 
-        // 只有在有有效標記時才調整邊界
+        // Adjust map view based on markers
         if (validMarkers > 0) {
           map.fitBounds(bounds);
-          // 如果只有一個標記，設置更高的縮放級別
+          
           if (validMarkers === 1) {
-            map.setZoom(15);
+            map.setZoom(MAP_ZOOM_LEVELS.STREET);
+          } else {
+            // Add padding for multiple markers
+            const currentBounds = map.getBounds();
+            if (currentBounds) {
+              currentBounds.extend(new google.maps.LatLng(
+                bounds.getNorthEast().lat() + 0.01,
+                bounds.getNorthEast().lng() + 0.01
+              ));
+              currentBounds.extend(new google.maps.LatLng(
+                bounds.getSouthWest().lat() - 0.01,
+                bounds.getSouthWest().lng() - 0.01
+              ));
+              map.fitBounds(currentBounds);
+            }
           }
         } else {
-          // 如果沒有有效標記，居中到香港
-          map.setCenter(HK_CENTER);
-          map.setZoom(11);
+          map.setCenter(HK_DEFAULT_CENTER);
+          map.setZoom(MAP_ZOOM_LEVELS.TERRITORY);
         }
 
       } catch (err) {
         console.error('Error initializing map:', err);
-        setError('Failed to initialize Google Maps');
+        setError(err.message || 'Failed to initialize Google Maps');
       }
     };
 
     initMap();
   }, [markers, center, zoom, onMarkerClick]);
+
+  // Helper functions
+  const isValidCoordinates = (lat, lng) => {
+    return !isNaN(lat) && !isNaN(lng) && 
+           lat >= -90 && lat <= 90 && 
+           lng >= -180 && lng <= 180 &&
+           lat >= 22.1 && lat <= 22.5 && // Hong Kong latitude range
+           lng >= 113.8 && lng <= 114.4;  // Hong Kong longitude range
+  };
+
+  const createInfoWindowContent = (location) => {
+    return `
+      <div style="padding: 12px;">
+        <h3 style="margin: 0 0 8px 0; color: #1976d2; font-size: 16px;">${location.name}</h3>
+        <p style="margin: 0 0 4px 0; color: #666;">${location.address}</p>
+        ${location.eventCount ? `<p style="margin: 0; color: #1976d2; font-weight: 500;">${location.eventCount} events</p>` : ''}
+      </div>
+    `;
+  };
 
   if (error) {
     return (
@@ -162,17 +192,19 @@ function GoogleMapComponent({
   }
 
   return (
-    <Box
-      ref={mapRef}
-      sx={{
-        width: '100%',
-        height: '100%',
-        minHeight: '400px',
-        position: 'relative',
-        bgcolor: '#f0f0f0',
-        border: '1px solid #ccc',
-      }}
-    />
+    <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: '400px' }}>
+      <Box
+        ref={mapRef}
+        sx={{
+          width: '100%',
+          height: '100%',
+          minHeight: '400px',
+          position: 'relative',
+          bgcolor: '#f0f0f0',
+          border: '1px solid #ccc',
+        }}
+      />
+    </Box>
   );
 }
 

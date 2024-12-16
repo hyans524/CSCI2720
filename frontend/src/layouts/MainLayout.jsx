@@ -4,7 +4,6 @@ import {
   Brightness7 as LightModeIcon,
   Map as MapIcon,
   List as ListIcon,
-  Favorite as FavoriteIcon,
   Login as LoginIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
@@ -15,7 +14,6 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
   const navItems = [
     { path: '/locations', label: 'Venue List', icon: <ListIcon /> },
     { path: '/map', label: 'Map View', icon: <MapIcon /> },
-    { path: '/favorites', label: 'Favorites', icon: <FavoriteIcon /> },
   ];
 
   return (
@@ -92,18 +90,18 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
         </Toolbar>
       </AppBar>
 
-      {/* Toolbar的佔位元素 */}
+      {/* Toolbar spacer */}
       <Toolbar />
 
-      {/* 主要內容區域 */}
+      {/* Main content area */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          height: 'calc(100vh - 64px)', // 減去 AppBar 的高度
+          height: 'calc(100vh - 64px)', // Subtract AppBar height
           width: '100%',
           position: 'relative',
-          overflow: 'hidden', // 防止內容溢出
+          overflow: 'hidden', // Prevent content overflow
           display: 'flex',
           flexDirection: 'column',
           bgcolor: (theme) => theme.palette.background.default
