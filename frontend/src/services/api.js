@@ -9,7 +9,7 @@ const api = axios.create({
     }
 });
 
-// 添加請求攔截器來處理認證
+// Add request interceptor for authentication
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -23,26 +23,26 @@ api.interceptors.request.use(
     }
 );
 
-// 場地相關 API
+// Venue-related APIs
 export const venueApi = {
     getAll: () => api.get('/venues'),
     getById: (id) => api.get(`/venues/${id}`),
+    create: (data) => api.post('/venues', data),
+    update: (id, data) => api.put(`/venues/${id}`, data),
+    delete: (id) => api.delete(`/venues/${id}`),
     getEvents: (id) => api.get(`/events/venue/${id}`)
 };
 
-// 事件相關 API
+// Event-related APIs
 export const eventApi = {
     getAll: () => api.get('/events'),
     getById: (id) => api.get(`/events/${id}`)
 };
 
-// 用戶相關 API
+// User-related APIs
 export const authApi = {
     login: (credentials) => api.post('/auth/login', credentials),
-    register: (userData) => api.post('/auth/register', userData),
-    getFavorites: () => api.get('/auth/favorites'),
-    addFavorite: (venueId) => api.post(`/auth/favorites/${venueId}`),
-    removeFavorite: (venueId) => api.delete(`/auth/favorites/${venueId}`)
+    checkAdmin: () => api.get('/auth/check-admin')
 };
 
 export default api; 

@@ -16,12 +16,18 @@ import {
   InputAdornment,
   CircularProgress,
   Alert,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Map as MapIcon,
-  Favorite as FavoriteIcon,
-  FavoriteBorder as FavoriteBorderIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import { venueApi, authApi } from '../services/api';
 
@@ -33,10 +39,16 @@ function LocationList() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [favorites, setFavorites] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingVenue, setEditingVenue] = useState(null);
+  const [formData, setFormData] = useState({
+    venueName: '',
+    address: '',
+  });
 
-  // 獲取場地數據
+  // Fetch venue data
   useEffect(() => {
     const fetchVenues = async () => {
       try {
@@ -44,7 +56,7 @@ function LocationList() {
         setVenues(response.data);
         setLoading(false);
       } catch (err) {
-        setError('無法載入場地數據');
+        setError('Failed to load venue data');
         setLoading(false);
       }
     };
@@ -52,40 +64,60 @@ function LocationList() {
     fetchVenues();
   }, []);
 
-  // 獲取收藏數據
+  // Check user permissions
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       setIsAuthenticated(true);
-      const fetchFavorites = async () => {
+      const checkAdmin = async () => {
         try {
-          const response = await authApi.getFavorites();
-          setFavorites(response.data.map(venue => venue._id));
+          const response = await authApi.checkAdmin();
+          setIsAdmin(response.data.isAdmin);
         } catch (err) {
-          console.error('無法載入收藏數據:', err);
+          console.error('Failed to check admin permissions:', err);
         }
       };
-      fetchFavorites();
+      checkAdmin();
     }
   }, []);
 
-  // 處理收藏切換
-  const handleFavoriteToggle = async (venueId) => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
+  // Admin functions
+  const handleEdit = (venue) => {
+    setEditingVenue(venue);
+    setFormData({
+      venueName: venue.venueName,
+      address: venue.address,
+    });
+    setDialogOpen(true);
+  };
 
-    try {
-      if (favorites.includes(venueId)) {
-        await authApi.removeFavorite(venueId);
-        setFavorites(favorites.filter(id => id !== venueId));
-      } else {
-        await authApi.addFavorite(venueId);
-        setFavorites([...favorites, venueId]);
+  const handleDelete = async (venueId) => {
+    if (window.confirm('Are you sure you want to delete this venue?')) {
+      try {
+        await venueApi.delete(venueId);
+        setVenues(venues.filter(venue => venue._id !== venueId));
+      } catch (err) {
+        console.error('Failed to delete venue:', err);
       }
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (editingVenue) {
+        await venueApi.update(editingVenue._id, formData);
+        setVenues(venues.map(venue =>
+          venue._id === editingVenue._id ? { ...venue, ...formData } : venue
+        ));
+      } else {
+        const response = await venueApi.create(formData);
+        setVenues([...venues, response.data]);
+      }
+      setDialogOpen(false);
+      setEditingVenue(null);
+      setFormData({ venueName: '', address: '' });
     } catch (err) {
-      console.error('無法更新收藏:', err);
+      console.error('Failed to save venue:', err);
     }
   };
 
@@ -120,14 +152,30 @@ function LocationList() {
   }
 
   const filteredVenues = venues.filter(venue =>
-    venue.venueName.toLowerCase().includes(searchTerm.toLowerCase())
+    venue.venueName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    venue.address.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Typography variant="h4" gutterBottom>
-        Venue List
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4">
+          Venue List
+        </Typography>
+        {isAdmin && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setEditingVenue(null);
+              setFormData({ venueName: '', address: '' });
+              setDialogOpen(true);
+            }}
+          >
+            Add Venue
+          </Button>
+        )}
+      </Box>
 
       <TextField
         fullWidth
@@ -169,13 +217,24 @@ function LocationList() {
                     >
                       <MapIcon />
                     </IconButton>
-                    <IconButton
-                      onClick={() => handleFavoriteToggle(venue._id)}
-                      color="secondary"
-                      title={favorites.includes(venue._id) ? "Remove from favorites" : "Add to favorites"}
-                    >
-                      {favorites.includes(venue._id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                    </IconButton>
+                    {isAdmin && (
+                      <>
+                        <IconButton
+                          onClick={() => handleEdit(venue)}
+                          color="primary"
+                          title="Edit Venue"
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleDelete(venue._id)}
+                          color="error"
+                          title="Delete Venue"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -192,6 +251,35 @@ function LocationList() {
         onRowsPerPageChange={handleChangeRowsPerPage}
         labelRowsPerPage="Rows per page:"
       />
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+        <DialogTitle>
+          {editingVenue ? 'Edit Venue' : 'Add Venue'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Venue Name"
+            fullWidth
+            value={formData.venueName}
+            onChange={(e) => setFormData({ ...formData, venueName: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Address"
+            fullWidth
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSubmit} variant="contained">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
