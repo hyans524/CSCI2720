@@ -31,6 +31,7 @@ function GoogleMapComponent({
   center = HK_DEFAULT_CENTER,
   zoom = MAP_ZOOM_LEVELS.TERRITORY,
   onMarkerClick,
+  options = {}
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -41,20 +42,44 @@ function GoogleMapComponent({
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [mapInstance, setMapInstance] = useState(null);
 
   useEffect(() => {
     setIsAuthenticated(authApi.isAuthenticated());
   }, []);
 
+  useEffect(() => {
+    if (mapInstance) {
+      mapInstance.setZoom(zoom);
+      mapInstance.setCenter(center);
+    }
+  }, [mapInstance, zoom, center]);
+
   const handleCommentSubmit = async () => {
+    if (!isAuthenticated) {
+      alert('Please login to add a comment');
+      return;
+    }
+
+    if (!comment.trim() || !rating) {
+      alert('Please provide both a comment and rating');
+      return;
+    }
+
     try {
-      await venueApi.addComment(selectedVenue.id, {
-        comment,
-        rating,
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login to add a comment');
+        return;
+      }
+
+      await venueApi.addComment(selectedVenue._id, {
+        comment: comment.trim(),
+        rating: Number(rating)
       });
       
       // Refresh venue data
-      const response = await venueApi.getById(selectedVenue.id);
+      const response = await venueApi.getById(selectedVenue._id);
       const updatedVenue = response.data;
       
       // Update info window content
@@ -67,8 +92,16 @@ function GoogleMapComponent({
       setCommentDialogOpen(false);
       setComment('');
       setRating(0);
+
+      // Show success message
+      alert('Comment added successfully');
     } catch (err) {
       console.error('Failed to submit comment:', err);
+      if (err.response?.status === 401) {
+        alert('Please login to add a comment');
+      } else {
+        alert(err.response?.data?.message || 'Failed to add comment. Please try again.');
+      }
     }
   };
 
@@ -103,7 +136,7 @@ function GoogleMapComponent({
     return `
       <div style="padding: 16px; max-width: 300px;">
         <h3 style="margin: 0 0 8px 0; color: #1976d2; font-size: 18px;">
-          ${location.name}
+          ${location.venueName || location.name}
         </h3>
         <p style="margin: 0 0 8px 0; color: #666;">
           ${location.address}
@@ -155,12 +188,14 @@ function GoogleMapComponent({
         // Initialize map with options
         const mapOptions = {
           ...DEFAULT_MAP_CONFIG,
+          ...options,
           center: center,
           zoom: zoom,
         };
 
         const map = new google.maps.Map(container, mapOptions);
         mapInstanceRef.current = map;
+        setMapInstance(map);
 
         // Clear existing markers
         markersRef.current.forEach(marker => marker.setMap(null));
@@ -173,9 +208,6 @@ function GoogleMapComponent({
         const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary("marker");
         
         // Process markers
-        const bounds = new google.maps.LatLngBounds();
-        let validMarkers = 0;
-
         markers.forEach(location => {
           // Validate coordinates
           const lat = parseFloat(location.latitude || location.lat);
@@ -196,8 +228,6 @@ function GoogleMapComponent({
           });
 
           const position = { lat, lng };
-          bounds.extend(position);
-          validMarkers++;
 
           const marker = new AdvancedMarkerElement({
             map,
@@ -228,38 +258,16 @@ function GoogleMapComponent({
             });
 
             if (onMarkerClick) {
-              onMarkerClick(location.id);
+              onMarkerClick(location._id);
             }
+
+            // Zoom to marker when clicked
+            map.setZoom(MAP_ZOOM_LEVELS.BUILDING);
+            map.panTo(position);
           });
 
           markersRef.current.push(marker);
         });
-
-        // Adjust map view based on markers
-        if (validMarkers > 0) {
-          map.fitBounds(bounds);
-          
-          if (validMarkers === 1) {
-            map.setZoom(MAP_ZOOM_LEVELS.STREET);
-          } else {
-            // Add padding for multiple markers
-            const currentBounds = map.getBounds();
-            if (currentBounds) {
-              currentBounds.extend(new google.maps.LatLng(
-                bounds.getNorthEast().lat() + 0.01,
-                bounds.getNorthEast().lng() + 0.01
-              ));
-              currentBounds.extend(new google.maps.LatLng(
-                bounds.getSouthWest().lat() - 0.01,
-                bounds.getSouthWest().lng() - 0.01
-              ));
-              map.fitBounds(currentBounds);
-            }
-          }
-        } else {
-          map.setCenter(HK_DEFAULT_CENTER);
-          map.setZoom(MAP_ZOOM_LEVELS.TERRITORY);
-        }
 
       } catch (err) {
         console.error('Error initializing map:', err);
@@ -268,7 +276,7 @@ function GoogleMapComponent({
     };
 
     initMap();
-  }, [markers, center, zoom, onMarkerClick, isAuthenticated]);
+  }, [markers, options, onMarkerClick, isAuthenticated]);
 
   // Helper functions
   const isValidCoordinates = (lat, lng) => {

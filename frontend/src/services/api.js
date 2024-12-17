@@ -46,7 +46,11 @@ export const venueApi = {
     update: (id, data) => api.put(`/venues/${id}`, data),
     delete: (id) => api.delete(`/venues/${id}`),
     getEvents: (id) => api.get(`/events/venue/${id}`),
-    addComment: (id, data) => api.post(`/venues/${id}/comments`, data),
+    addComment: (venueId, data) => api.post(`/auth/comments`, { 
+        venueId,
+        comment: data.comment,
+        rating: data.rating
+    }),
     getComments: (id) => api.get(`/venues/${id}/comments`),
 };
 
