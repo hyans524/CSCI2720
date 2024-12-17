@@ -72,13 +72,14 @@ router.put('/:id', auth.adminAuth, async (req, res) => {
 });
 
 // Delete event (admin only)
-router.delete('/:id', auth.adminAuth, async (req, res) => {
+router.delete('/:eventId', auth.adminAuth, async (req, res) => {
+    console.log(req.params.eventId)
     try {
-        const event = await Event.findById(req.params.id);
+        const event = await Event.findOne({eventId: req.params.eventId}).exec();
         if (!event) {
             return res.status(404).json({ message: 'Event not found' });
         }
-        await event.remove();
+        await Event.deleteOne({eventId: req.params.eventId}).exec();
         res.json({ message: 'Event deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });

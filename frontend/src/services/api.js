@@ -57,7 +57,10 @@ export const venueApi = {
 // Event-related APIs
 export const eventApi = {
     getAll: () => api.get('/events'),
-    getById: (id) => api.get(`/events/${id}`)
+    getById: (id) => api.get(`/events/${id}`),
+    create: (data) => api.post('/events', data),
+    update: (id, data) => api.put(`/events/${id}`, data),
+    delete: (id) => api.delete(`/events/${id}`),
 };
 
 // Auth-related APIs

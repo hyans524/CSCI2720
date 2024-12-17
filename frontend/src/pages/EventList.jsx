@@ -55,6 +55,9 @@ function EventList() {
   const [formData, setFormData] = useState({
     title: '',
     presenter: '',
+    venueId: '',
+    date: '',
+    description: ''
   });
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -97,6 +100,9 @@ function EventList() {
     setFormData({
       title: event.title,
       presenter: event.presenter,
+      venueId: event.venue.venueId,
+      date: event.date,
+      description: event.description
     });
     setDialogOpen(true);
   };
@@ -105,7 +111,7 @@ function EventList() {
     if (window.confirm('Are you sure you want to delete this event?')) {
       try {
         await eventApi.delete(eventId);
-        setEvents(events.filter(event => event._id !== eventId));
+        setEvents(events.filter(event => event.eventId !== eventId));
       } catch (err) {
         console.error('Failed to delete event:', err);
       }
@@ -125,7 +131,13 @@ function EventList() {
       }
       setDialogOpen(false);
       setEditingEvent(null);
-      setFormData({ title: '', presenter: '' });
+      setFormData({
+        title: '',
+        presenter: '',
+        venueId: '',
+        date: '',
+        description: ''
+      });
     } catch (err) {
       console.error('Failed to save event:', err);
     }
@@ -151,11 +163,11 @@ function EventList() {
         comment,
         rating,
       });
-      
+
       // Refresh event data to show new comment
       const response = await eventApi.getAll();
       setEvents(response.data);
-      
+
       setCommentDialogOpen(false);
       setComment('');
       setRating(0);
@@ -200,7 +212,8 @@ function EventList() {
   }
 
   const filteredEvents = events.filter(event =>
-    event.title.toLowerCase().includes(searchTerm.toLowerCase())
+    // event.title.toLowerCase().includes(searchTerm.toLowerCase())
+    event.eventId.toString().includes(searchTerm.toString())
   );
 
   return (
@@ -215,7 +228,13 @@ function EventList() {
             startIcon={<AddIcon />}
             onClick={() => {
               setEditingEvent(null);
-              setFormData({ title: '', presenter: '' });
+              setFormData({
+                title: '',
+                presenter: '',
+                venueId: '',
+                date: '',
+                description: ''
+              });
               setDialogOpen(true);
             }}
           >
@@ -227,7 +246,7 @@ function EventList() {
       <TextField
         fullWidth
         variant="outlined"
-        placeholder="Search events..."
+        placeholder="Search a event using eventId..."
         value={searchTerm}
         onChange={handleSearchChange}
         sx={{ mb: 2 }}
@@ -244,8 +263,10 @@ function EventList() {
         <Table stickyHeader>
           <TableHead>
             <TableRow>
+              <TableCell>Event ID</TableCell>
               <TableCell>Event Title</TableCell>
               <TableCell>Presenter</TableCell>
+              <TableCell>Date</TableCell>
               <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -254,29 +275,14 @@ function EventList() {
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((event) => (
                 <TableRow key={event._id} hover>
+                  <TableCell>{event.eventId}</TableCell>
                   <TableCell>{event.title}</TableCell>
                   <TableCell>{event.presenter}</TableCell>
+                  <TableCell>{event.date}</TableCell>
                   <TableCell align="center">
-                    
+
                     {isAuthenticated && (
                       <>
-                        <IconButton
-                          onClick={() => {
-                            setSelectedEvent(event);
-                            setCommentDialogOpen(true);
-                          }}
-                          color="primary"
-                          title="Add Comment"
-                        >
-                          <CommentIcon />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => handleFavoriteToggle(event._id)}
-                          color="primary"
-                          title={favorites.includes(event._id) ? "Remove from Favorites" : "Add to Favorites"}
-                        >
-                          {favorites.includes(event._id) ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                        </IconButton>
                       </>
                     )}
                     {isAdmin && (
@@ -284,12 +290,12 @@ function EventList() {
                         <IconButton
                           onClick={() => handleEdit(event)}
                           color="primary"
-                          title="Edit Event"
+                          title="Read or Edit Event"
                         >
                           <EditIcon />
                         </IconButton>
                         <IconButton
-                          onClick={() => handleDelete(event._id)}
+                          onClick={() => handleDelete(event.eventId)}
                           color="error"
                           title="Delete Event"
                         >
@@ -333,6 +339,28 @@ function EventList() {
             fullWidth
             value={formData.presenter}
             onChange={(e) => setFormData({ ...formData, presenter: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            multiline
+            fullWidth
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Venue ID"
+            fullWidth
+            value={formData.venueId}
+            onChange={(e) => setFormData({ ...formData, venueId: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Date"
+            fullWidth
+            value={formData.date}
+            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
           />
         </DialogContent>
         <DialogActions>
