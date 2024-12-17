@@ -7,6 +7,7 @@ const venueSchema = new mongoose.Schema({
     longitude: { type: Number, default: 0 },
     address: { type: String, default: '' },
     description: { type: String},
+    comment: [{type: String}]
 });
 
 module.exports = mongoose.model('Venue', venueSchema); 
