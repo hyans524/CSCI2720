@@ -61,3 +61,35 @@ export const panToHongKong = (map) => {
   map.panTo(HK_DEFAULT_CENTER);
   map.setZoom(MAP_ZOOM_LEVELS.TERRITORY);
 };
+// Helper functions for zoom control
+export const adjustZoom = (map, zoomChange) => {
+  if (!map) return;
+  const currentZoom = map.getZoom();
+  map.setZoom(currentZoom + zoomChange);
+};
+
+export const zoomIn = (map) => adjustZoom(map, 1);
+export const zoomOut = (map) => adjustZoom(map, -1);
+
+export const setCustomZoom = (map, zoomLevel) => {
+  if (!map) return;
+  map.setZoom(Math.min(Math.max(zoomLevel, 1), 20)); // Ensure zoom level is between 1 and 20
+};
+
+// Helper function to add marker with click listener
+const addMarker = async (position) => {
+  const markerPosition = {
+    lat: parseFloat(position.lat),
+    lng: parseFloat(position.lng)
+  };
+
+  console.log('Attempting to create marker at:', markerPosition);
+  
+  const marker = await createAdvancedMarker(map, markerPosition);
+  
+  if (marker) {
+    marker.addListener('click', () => {
+      console.log('Marker clicked at position:', markerPosition);
+    });
+  }
+}; 

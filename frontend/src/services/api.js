@@ -23,6 +23,21 @@ api.interceptors.request.use(
     }
 );
 
+// Add response interceptor for handling auth errors
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            // Clear auth data on unauthorized
+            localStorage.removeItem('token');
+            localStorage.removeItem('isAdmin');
+            localStorage.removeItem('userId');
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
+
 // Venue-related APIs
 export const venueApi = {
     getAll: () => api.get('/venues'),
@@ -39,10 +54,17 @@ export const eventApi = {
     getById: (id) => api.get(`/events/${id}`)
 };
 
-// User-related APIs
+// Auth-related APIs
 export const authApi = {
     login: (credentials) => api.post('/auth/login', credentials),
-    checkAdmin: () => api.get('/auth/check-admin')
+    logout: () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('isAdmin');
+        localStorage.removeItem('userId');
+    },
+    isAuthenticated: () => !!localStorage.getItem('token'),
+    isAdmin: () => localStorage.getItem('isAdmin') === 'true',
+    getCurrentUserId: () => localStorage.getItem('userId')
 };
 
 export default api; 

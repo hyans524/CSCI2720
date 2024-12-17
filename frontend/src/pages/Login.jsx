@@ -3,82 +3,56 @@ import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Paper,
-  Tabs,
-  Tab,
   Box,
   TextField,
   Button,
   Typography,
   Alert,
 } from '@mui/material';
-
-function TabPanel({ children, value, index, ...other }) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`login-tabpanel-${index}`}
-      aria-labelledby={`login-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
+import { authApi } from '../services/api';
 
 function Login() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState(0);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [adminUsername, setAdminUsername] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // This will be replaced with actual API calls later
-    if (tab === 0) { // User login
-      if (username === 'user' && password === 'password') {
-        navigate('/locations');
-      } else {
-        setError('Invalid username or password');
-      }
-    } else { // Admin login
-      if (adminUsername === 'admin' && adminPassword === 'admin') {
-        navigate('/admin');
-      } else {
-        setError('Invalid admin credentials');
-      }
-    }
-  };
+    try {
+      const credentials = {
+        username,
+        password
+      };
 
-  const handleError = (err) => {
-    console.error('Login error:', err);
-    setError('An error occurred during login. Please try again later.');
+      const response = await authApi.login(credentials);
+      
+      if (response.data) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('isAdmin', response.data.isAdmin);
+        localStorage.setItem('userId', response.data.userId);
+        localStorage.setItem('username', credentials.username);
+
+        if (response.data.isAdmin) {
+          navigate('/admin');
+        } else {
+          navigate('/locations');
+        }
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+    }
   };
 
   return (
     <Container maxWidth="sm" sx={{ mt: 4 }}>
       <Paper elevation={3}>
-        <Tabs
-          value={tab}
-          onChange={(e, newValue) => setTab(newValue)}
-          variant="fullWidth"
-        >
-          <Tab label="User Login" />
-          <Tab label="Admin Login" />
-        </Tabs>
-
-        <TabPanel value={tab} index={0}>
+        <Box sx={{ p: 3 }}>
           <Typography variant="h5" gutterBottom>
-            User Login
+            Login
           </Typography>
           <form onSubmit={handleSubmit}>
             <TextField
@@ -112,45 +86,7 @@ function Login() {
               Login
             </Button>
           </form>
-        </TabPanel>
-
-        <TabPanel value={tab} index={1}>
-          <Typography variant="h5" gutterBottom>
-            Admin Login
-          </Typography>
-          <form onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Admin Username"
-              value={adminUsername}
-              onChange={(e) => setAdminUsername(e.target.value)}
-              margin="normal"
-              required
-            />
-            <TextField
-              fullWidth
-              type="password"
-              label="Password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              margin="normal"
-              required
-            />
-            {error && (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {error}
-              </Alert>
-            )}
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              sx={{ mt: 3 }}
-            >
-              Login
-            </Button>
-          </form>
-        </TabPanel>
+        </Box>
       </Paper>
     </Container>
   );

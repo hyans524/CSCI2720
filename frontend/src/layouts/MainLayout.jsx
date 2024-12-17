@@ -1,15 +1,78 @@
-import { AppBar, Box, Toolbar, Typography, IconButton, Button } from '@mui/material';
+import { AppBar, Box, Toolbar, Typography, IconButton, Button, Menu, MenuItem, Badge } from '@mui/material';
 import {
-  Brightness4 as DarkModeIcon,
-  Brightness7 as LightModeIcon,
+  NightlightRound as DarkModeIcon,
+  WbSunny as LightModeIcon,
   Map as MapIcon,
   List as ListIcon,
   Login as LoginIcon,
+  AccountCircle as AccountIcon,
+  Logout as LogoutIcon,
+  AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { authApi } from '../services/api';
+
+// Common styles
+const commonIconStyles = {
+  fontSize: 20,
+  color: 'inherit'
+};
+
+const commonButtonStyles = {
+  ml: 2,
+  p: 1,
+  '&:hover': {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+  }
+};
+
+const commonNavButtonStyles = {
+  color: 'white',
+  mx: 1,
+  '&.active': {
+    bgcolor: 'primary.dark',
+  },
+  py: 0.5,
+  minHeight: 32
+};
 
 function MainLayout({ children, isDarkMode, toggleDarkMode }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [username, setUsername] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const isAuth = authApi.isAuthenticated();
+      setIsAuthenticated(isAuth);
+      if (isAuth) {
+        setUsername(localStorage.getItem('username') || 'User');
+        setIsAdmin(localStorage.getItem('isAdmin') === 'true');
+      }
+    };
+    checkAuth();
+  }, [location]);
+
+  const handleMenu = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    authApi.logout();
+    setIsAuthenticated(false);
+    setUsername('');
+    setIsAdmin(false);
+    navigate('/login');
+    handleClose();
+  };
 
   const navItems = [
     { path: '/locations', label: 'Venue List', icon: <ListIcon /> },
@@ -23,17 +86,23 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
         flexDirection: 'column', 
         minHeight: '100vh',
         width: '100vw',
-        overflow: 'hidden' // Prevent scrolling on the main container
+        overflow: 'hidden'
       }}
     >
       <AppBar 
         position="fixed" 
         sx={{ 
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          width: '100%'
+          width: '100%',
+          height: 48
         }}
       >
-        <Toolbar>
+        <Toolbar 
+          sx={{ 
+            minHeight: '48px !important',
+            padding: '0 16px'
+          }}
+        >
           <Typography
             variant="h6"
             component={RouterLink}
@@ -43,6 +112,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
               textDecoration: 'none',
               color: 'inherit',
               fontWeight: 700,
+              fontSize: '1.1rem'
             }}
           >
             Cultural Events
@@ -55,13 +125,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
                 component={RouterLink}
                 to={item.path}
                 startIcon={item.icon}
-                sx={{
-                  color: 'white',
-                  mx: 1,
-                  '&.active': {
-                    bgcolor: 'primary.dark',
-                  },
-                }}
+                sx={commonNavButtonStyles}
                 className={location.pathname === item.path ? 'active' : ''}
               >
                 {item.label}
@@ -71,40 +135,76 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
             <IconButton
               color="inherit"
               onClick={toggleDarkMode}
-              sx={{ ml: 2 }}
+              sx={commonButtonStyles}
               aria-label="toggle theme"
+              size="small"
             >
-              {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              {isDarkMode ? (
+                <DarkModeIcon sx={commonIconStyles} />
+              ) : (
+                <LightModeIcon sx={commonIconStyles} />
+              )}
             </IconButton>
 
-            <Button
-              component={RouterLink}
-              to="/login"
-              color="inherit"
-              startIcon={<LoginIcon />}
-              sx={{ ml: 2 }}
-            >
-              Login
-            </Button>
+            {isAuthenticated ? (
+              <>
+                <IconButton
+                  color="inherit"
+                  onClick={handleMenu}
+                  sx={commonButtonStyles}
+                  size="small"
+                >
+                  <AccountIcon sx={commonIconStyles} />
+                </IconButton>
+                <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
+                  <Typography variant="body2">
+                    {username}
+                  </Typography>
+                  {isAdmin && (
+                    <AdminIcon sx={{ ml: 1, width: 16, height: 16 }} />
+                  )}
+                </Box>
+                <Menu
+                  anchorEl={anchorEl}
+                  open={Boolean(anchorEl)}
+                  onClose={handleClose}
+                  PaperProps={{
+                    sx: {
+                      mt: 0.5
+                    }
+                  }}
+                >
+                  <MenuItem onClick={handleLogout} sx={{ py: 1, minHeight: 'auto' }}>
+                    <LogoutIcon sx={{ mr: 1, fontSize: 18 }} />
+                    Logout
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : (
+              <Button
+                component={RouterLink}
+                to="/login"
+                color="inherit"
+                startIcon={<LoginIcon sx={commonIconStyles} />}
+                sx={commonNavButtonStyles}
+                size="small"
+              >
+                Login
+              </Button>
+            )}
           </Box>
         </Toolbar>
       </AppBar>
 
-      {/* Toolbar spacer */}
-      <Toolbar />
+      <Toolbar sx={{ minHeight: '48px !important' }} />
 
-      {/* Main content area */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          height: 'calc(100vh - 64px)', // Subtract AppBar height
           width: '100%',
-          position: 'relative',
-          overflow: 'hidden', // Prevent content overflow
-          display: 'flex',
-          flexDirection: 'column',
-          bgcolor: (theme) => theme.palette.background.default
+          overflow: 'auto',
+          p: 3
         }}
       >
         {children}
