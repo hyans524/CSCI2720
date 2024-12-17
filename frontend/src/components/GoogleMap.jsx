@@ -56,9 +56,24 @@ function GoogleMapComponent({
         // Load Google Maps using shared loader
         const google = await loader.load();
 
+        // Custom map controls configuration
+        const customMapControls = {
+          mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+            position: google.maps.ControlPosition.TOP_RIGHT,
+            mapTypeIds: ['roadmap', 'satellite'],
+          },
+          zoomControlOptions: {
+            position: google.maps.ControlPosition.TOP_RIGHT,
+          },
+          streetViewControl: false,
+          fullscreenControl: false,
+        };
+
         // Initialize map with options
         const mapOptions = {
           ...DEFAULT_MAP_CONFIG,
+          ...customMapControls,
           center: center,
           zoom: zoom,
           mapId: MAP_ID,

@@ -69,15 +69,7 @@ function LocationList() {
     const token = localStorage.getItem('token');
     if (token) {
       setIsAuthenticated(true);
-      const checkAdmin = async () => {
-        try {
-          const response = await authApi.checkAdmin();
-          setIsAdmin(response.data.isAdmin);
-        } catch (err) {
-          console.error('Failed to check admin permissions:', err);
-        }
-      };
-      checkAdmin();
+      setIsAdmin(authApi.isAdmin());
     }
   }, []);
 
