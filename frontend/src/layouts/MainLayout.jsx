@@ -1,7 +1,7 @@
 import { AppBar, Box, Toolbar, Typography, IconButton, Button, Menu, MenuItem, Badge } from '@mui/material';
 import {
-  Brightness4 as DarkModeIcon,
-  Brightness7 as LightModeIcon,
+  NightlightRound as DarkModeIcon,
+  WbSunny as LightModeIcon,
   Map as MapIcon,
   List as ListIcon,
   Login as LoginIcon,
@@ -12,6 +12,30 @@ import {
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { authApi } from '../services/api';
+
+// Common styles
+const commonIconStyles = {
+  fontSize: 20,
+  color: 'inherit'
+};
+
+const commonButtonStyles = {
+  ml: 2,
+  p: 1,
+  '&:hover': {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)'
+  }
+};
+
+const commonNavButtonStyles = {
+  color: 'white',
+  mx: 1,
+  '&.active': {
+    bgcolor: 'primary.dark',
+  },
+  py: 0.5,
+  minHeight: 32
+};
 
 function MainLayout({ children, isDarkMode, toggleDarkMode }) {
   const location = useLocation();
@@ -69,10 +93,16 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
         position="fixed" 
         sx={{ 
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          width: '100%'
+          width: '100%',
+          height: 48
         }}
       >
-        <Toolbar>
+        <Toolbar 
+          sx={{ 
+            minHeight: '48px !important',
+            padding: '0 16px'
+          }}
+        >
           <Typography
             variant="h6"
             component={RouterLink}
@@ -82,6 +112,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
               textDecoration: 'none',
               color: 'inherit',
               fontWeight: 700,
+              fontSize: '1.1rem'
             }}
           >
             Cultural Events
@@ -94,13 +125,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
                 component={RouterLink}
                 to={item.path}
                 startIcon={item.icon}
-                sx={{
-                  color: 'white',
-                  mx: 1,
-                  '&.active': {
-                    bgcolor: 'primary.dark',
-                  },
-                }}
+                sx={commonNavButtonStyles}
                 className={location.pathname === item.path ? 'active' : ''}
               >
                 {item.label}
@@ -110,10 +135,15 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
             <IconButton
               color="inherit"
               onClick={toggleDarkMode}
-              sx={{ ml: 2 }}
+              sx={commonButtonStyles}
               aria-label="toggle theme"
+              size="small"
             >
-              {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
+              {isDarkMode ? (
+                <DarkModeIcon sx={commonIconStyles} />
+              ) : (
+                <LightModeIcon sx={commonIconStyles} />
+              )}
             </IconButton>
 
             {isAuthenticated ? (
@@ -121,25 +151,31 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
                 <IconButton
                   color="inherit"
                   onClick={handleMenu}
-                  sx={{ ml: 2 }}
+                  sx={commonButtonStyles}
+                  size="small"
                 >
-                  <AccountIcon />
+                  <AccountIcon sx={commonIconStyles} />
                 </IconButton>
                 <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
-                  <Typography variant="body1">
+                  <Typography variant="body2">
                     {username}
                   </Typography>
                   {isAdmin && (
-                    <AdminIcon sx={{ ml: 1, width: 20, height: 20 }} />
+                    <AdminIcon sx={{ ml: 1, width: 16, height: 16 }} />
                   )}
                 </Box>
                 <Menu
                   anchorEl={anchorEl}
                   open={Boolean(anchorEl)}
                   onClose={handleClose}
+                  PaperProps={{
+                    sx: {
+                      mt: 0.5
+                    }
+                  }}
                 >
-                  <MenuItem onClick={handleLogout}>
-                    <LogoutIcon sx={{ mr: 1 }} />
+                  <MenuItem onClick={handleLogout} sx={{ py: 1, minHeight: 'auto' }}>
+                    <LogoutIcon sx={{ mr: 1, fontSize: 18 }} />
                     Logout
                   </MenuItem>
                 </Menu>
@@ -149,8 +185,9 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
                 component={RouterLink}
                 to="/login"
                 color="inherit"
-                startIcon={<LoginIcon />}
-                sx={{ ml: 2 }}
+                startIcon={<LoginIcon sx={commonIconStyles} />}
+                sx={commonNavButtonStyles}
+                size="small"
               >
                 Login
               </Button>
@@ -159,7 +196,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
         </Toolbar>
       </AppBar>
 
-      <Toolbar />
+      <Toolbar sx={{ minHeight: '48px !important' }} />
 
       <Box
         component="main"
