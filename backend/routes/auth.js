@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Venue = require('../models/Venue');
 const auth = require('../middleware/auth');
 
 // Register new user
@@ -98,6 +99,147 @@ router.delete('/favorites/:venueId', auth.userAuth, async (req, res) => {
         user.favorites = user.favorites.filter(id => id.toString() !== req.params.venueId);
         await user.save();
         res.json(user.favorites);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get user's comments
+router.get('/comments', auth.userAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId)
+            .populate({
+                path: 'comments.venue',
+                select: 'venueName address'
+            });
+        res.json(user.comments);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Get user's comments for a specific venue
+router.get('/comments/venue/:venueId', auth.userAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        const comments = user.getVenueComments(req.params.venueId);
+        res.json(comments);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Add a comment
+router.post('/comments', auth.userAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        const venue = await Venue.findById(req.body.venueId);
+        
+        if (!venue) {
+            return res.status(404).json({ message: 'Venue not found' });
+        }
+
+        // Create comment object
+        const newComment = {
+            user: req.user.userId,
+            username: user.username,
+            venue: req.body.venueId,
+            comment: req.body.comment,
+            rating: req.body.rating,
+            createdAt: new Date()
+        };
+
+        // Add comment to user's comments
+        user.comments.push(newComment);
+        await user.save();
+
+        // Add comment to venue's comments
+        venue.comments.push({
+            user: req.user.userId,
+            username: user.username,
+            comment: req.body.comment,
+            rating: req.body.rating,
+            createdAt: new Date()
+        });
+        await venue.save();
+        
+        const updatedUser = await User.findById(req.user.userId)
+            .populate({
+                path: 'comments.venue',
+                select: 'venueName address'
+            });
+            
+        res.json(updatedUser.comments);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// Update a comment
+router.put('/comments/:commentId', auth.userAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        const comment = user.comments.id(req.params.commentId);
+        
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Update user's comment
+        if (req.body.comment) comment.comment = req.body.comment;
+        if (req.body.rating) comment.rating = req.body.rating;
+        await user.save();
+
+        // Update venue's comment
+        const venue = await Venue.findById(comment.venue);
+        const venueComment = venue.comments.find(
+            c => c.user.toString() === req.user.userId && 
+                c.createdAt.getTime() === comment.createdAt.getTime()
+        );
+        
+        if (venueComment) {
+            if (req.body.comment) venueComment.comment = req.body.comment;
+            if (req.body.rating) venueComment.rating = req.body.rating;
+            await venue.save();
+        }
+        
+        const updatedUser = await User.findById(req.user.userId)
+            .populate({
+                path: 'comments.venue',
+                select: 'venueName address'
+            });
+            
+        res.json(updatedUser.comments);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// Delete a comment
+router.delete('/comments/:commentId', auth.userAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId);
+        const comment = user.comments.id(req.params.commentId);
+        
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        // Remove comment from venue
+        const venue = await Venue.findById(comment.venue);
+        if (venue) {
+            venue.comments = venue.comments.filter(
+                c => c.user.toString() !== req.user.userId || 
+                     c.createdAt.getTime() !== comment.createdAt.getTime()
+            );
+            await venue.save();
+        }
+
+        // Remove comment from user
+        user.comments.pull(req.params.commentId);
+        await user.save();
+        
+        res.json({ message: 'Comment deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

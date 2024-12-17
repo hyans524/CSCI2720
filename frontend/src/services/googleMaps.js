@@ -1,6 +1,7 @@
 import { Loader } from '@googlemaps/js-api-loader';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+const MAP_ID = '8738dc5f370a0c3e';
 
 // Default coordinates for Hong Kong
 export const HK_DEFAULT_CENTER = {
@@ -14,7 +15,8 @@ export const DEFAULT_MAP_CONFIG = {
   mapTypeControl: true,
   streetViewControl: true,
   fullscreenControl: true,
-  zoomControl: true
+  zoomControl: true,
+  mapId: MAP_ID  // Add Map ID here
 };
 
 // Map zoom level constants
@@ -39,7 +41,10 @@ export const loader = new Loader(LOADER_CONFIG);
 export const initializeGoogleMaps = async (mapElement, config = DEFAULT_MAP_CONFIG) => {
   try {
     const google = await loader.load();
-    const map = new google.maps.Map(mapElement, config);
+    const map = new google.maps.Map(mapElement, {
+      ...config,
+      mapId: MAP_ID  // Ensure Map ID is always included
+    });
     return { google, map };
   } catch (error) {
     console.error('Error loading Google Maps:', error);
