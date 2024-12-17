@@ -45,7 +45,9 @@ export const venueApi = {
     create: (data) => api.post('/venues', data),
     update: (id, data) => api.put(`/venues/${id}`, data),
     delete: (id) => api.delete(`/venues/${id}`),
-    getEvents: (id) => api.get(`/events/venue/${id}`)
+    getEvents: (id) => api.get(`/events/venue/${id}`),
+    addComment: (id, data) => api.post(`/venues/${id}/comments`, data),
+    getComments: (id) => api.get(`/venues/${id}/comments`),
 };
 
 // Event-related APIs
@@ -64,7 +66,10 @@ export const authApi = {
     },
     isAuthenticated: () => !!localStorage.getItem('token'),
     isAdmin: () => localStorage.getItem('isAdmin') === 'true',
-    getCurrentUserId: () => localStorage.getItem('userId')
+    getCurrentUserId: () => localStorage.getItem('userId'),
+    getFavorites: () => api.get('/auth/favorites'),
+    addFavorite: (venueId) => api.post(`/auth/favorites/${venueId}`),
+    removeFavorite: (venueId) => api.delete(`/auth/favorites/${venueId}`),
 };
 
 export default api; 

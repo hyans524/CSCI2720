@@ -1,11 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
-import { Box, Typography } from '@mui/material';
+import { 
+  Box, 
+  Typography, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  Button, 
+  TextField,
+  Rating,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Avatar,
+  Divider
+} from '@mui/material';
 import { 
   HK_DEFAULT_CENTER, 
   MAP_ZOOM_LEVELS, 
   DEFAULT_MAP_CONFIG,
   loader
 } from '../services/googleMaps';
+import { venueApi, authApi } from '../services/api';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 const MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID;
@@ -34,6 +51,100 @@ function GoogleMapComponent({
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const [error, setError] = useState(null);
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [comment, setComment] = useState('');
+  const [rating, setRating] = useState(0);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    setIsAuthenticated(authApi.isAuthenticated());
+  }, []);
+
+  const handleCommentSubmit = async () => {
+    try {
+      await venueApi.addComment(selectedVenue.id, {
+        comment,
+        rating,
+      });
+      
+      // Refresh venue data
+      const response = await venueApi.getById(selectedVenue.id);
+      const updatedVenue = response.data;
+      
+      // Update info window content
+      if (selectedVenue.infoWindow) {
+        selectedVenue.infoWindow.setContent(
+          createInfoWindowContent(updatedVenue)
+        );
+      }
+      
+      setCommentDialogOpen(false);
+      setComment('');
+      setRating(0);
+    } catch (err) {
+      console.error('Failed to submit comment:', err);
+    }
+  };
+
+  const createInfoWindowContent = (location) => {
+    const addCommentButton = isAuthenticated ? 
+      `<button 
+        id="addCommentBtn" 
+        style="
+          background-color: #1976d2; 
+          color: white; 
+          border: none; 
+          padding: 8px 16px; 
+          border-radius: 4px; 
+          cursor: pointer;
+          margin-top: 8px;
+        "
+      >
+        Add Comment
+      </button>` : '';
+
+    const comments = location.comments?.map(comment => `
+      <div style="margin: 8px 0; padding: 8px; background: #f5f5f5; border-radius: 4px;">
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+          <span style="font-weight: 500; margin-right: 8px;">${comment.user.username}</span>
+          <span style="color: #f4b400;">★</span>
+          <span style="margin-left: 4px;">${comment.rating}</span>
+        </div>
+        <div style="color: #666;">${comment.comment}</div>
+      </div>
+    `).join('') || '';
+
+    return `
+      <div style="padding: 16px; max-width: 300px;">
+        <h3 style="margin: 0 0 8px 0; color: #1976d2; font-size: 18px;">
+          ${location.name}
+        </h3>
+        <p style="margin: 0 0 8px 0; color: #666;">
+          ${location.address}
+        </p>
+        ${location.averageRating ? `
+          <div style="margin: 8px 0;">
+            <span style="color: #f4b400; font-size: 16px;">★</span>
+            <span style="margin-left: 4px;">${location.averageRating.toFixed(1)}</span>
+            <span style="color: #666; margin-left: 4px;">(${location.comments?.length || 0} reviews)</span>
+          </div>
+        ` : ''}
+        ${location.eventCount ? `
+          <p style="margin: 8px 0; color: #1976d2; font-weight: 500;">
+            ${location.eventCount} events
+          </p>
+        ` : ''}
+        ${comments ? `
+          <div style="margin-top: 16px; max-height: 200px; overflow-y: auto;">
+            <h4 style="margin: 0 0 8px 0;">Recent Comments</h4>
+            ${comments}
+          </div>
+        ` : ''}
+        ${addCommentButton}
+      </div>
+    `;
+  };
 
   useEffect(() => {
     const initMap = async () => {
@@ -56,9 +167,24 @@ function GoogleMapComponent({
         // Load Google Maps using shared loader
         const google = await loader.load();
 
+        // Custom map controls configuration
+        const customMapControls = {
+          mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
+            position: google.maps.ControlPosition.TOP_RIGHT,
+            mapTypeIds: ['roadmap', 'satellite'],
+          },
+          zoomControlOptions: {
+            position: google.maps.ControlPosition.TOP_RIGHT,
+          },
+          streetViewControl: false,
+          fullscreenControl: false,
+        };
+
         // Initialize map with options
         const mapOptions = {
           ...DEFAULT_MAP_CONFIG,
+          ...customMapControls,
           center: center,
           zoom: zoom,
           mapId: MAP_ID,
@@ -121,6 +247,18 @@ function GoogleMapComponent({
           marker.addEventListener('click', () => {
             infoWindow.setContent(createInfoWindowContent(location));
             infoWindow.open(map, marker);
+
+            // Add event listener for the Add Comment button after info window is opened
+            google.maps.event.addListener(infoWindow, 'domready', () => {
+              const addCommentBtn = document.getElementById('addCommentBtn');
+              if (addCommentBtn) {
+                addCommentBtn.addEventListener('click', () => {
+                  setSelectedVenue({ ...location, infoWindow });
+                  setCommentDialogOpen(true);
+                });
+              }
+            });
+
             if (onMarkerClick) {
               onMarkerClick(location.id);
             }
@@ -162,7 +300,7 @@ function GoogleMapComponent({
     };
 
     initMap();
-  }, [markers, center, zoom, onMarkerClick]);
+  }, [markers, center, zoom, onMarkerClick, isAuthenticated]);
 
   // Helper functions
   const isValidCoordinates = (lat, lng) => {
@@ -171,16 +309,6 @@ function GoogleMapComponent({
            lng >= -180 && lng <= 180 &&
            lat >= 22.1 && lat <= 22.5 && // Hong Kong latitude range
            lng >= 113.8 && lng <= 114.4;  // Hong Kong longitude range
-  };
-
-  const createInfoWindowContent = (location) => {
-    return `
-      <div style="padding: 12px;">
-        <h3 style="margin: 0 0 8px 0; color: #1976d2; font-size: 16px;">${location.name}</h3>
-        <p style="margin: 0 0 4px 0; color: #666;">${location.address}</p>
-        ${location.eventCount ? `<p style="margin: 0; color: #1976d2; font-weight: 500;">${location.eventCount} events</p>` : ''}
-      </div>
-    `;
   };
 
   if (error) {
@@ -204,6 +332,60 @@ function GoogleMapComponent({
           border: '1px solid #ccc',
         }}
       />
+
+      <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)}>
+        <DialogTitle>Add Comment</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            <Typography component="legend">Rating</Typography>
+            <Rating
+              value={rating}
+              onChange={(event, newValue) => {
+                setRating(newValue);
+              }}
+            />
+          </Box>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Your Comment"
+            fullWidth
+            multiline
+            rows={4}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
+          {selectedVenue?.comments && selectedVenue.comments.length > 0 && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6">Previous Comments</Typography>
+              <List>
+                {selectedVenue.comments.map((comment, index) => (
+                  <ListItem key={index} alignItems="flex-start">
+                    <ListItemAvatar>
+                      <Avatar>{comment.user.username[0]}</Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography component="span">{comment.user.username}</Typography>
+                          <Rating value={comment.rating} readOnly size="small" sx={{ ml: 1 }} />
+                        </Box>
+                      }
+                      secondary={comment.comment}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCommentSubmit} variant="contained">
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

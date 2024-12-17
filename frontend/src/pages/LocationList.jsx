@@ -21,6 +21,12 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Rating,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  Avatar,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -28,6 +34,9 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
+  Comment as CommentIcon,
+  Favorite as FavoriteIcon,
+  FavoriteBorder as FavoriteBorderIcon,
 } from '@mui/icons-material';
 import { venueApi, authApi } from '../services/api';
 
@@ -47,37 +56,38 @@ function LocationList() {
     venueName: '',
     address: '',
   });
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [comment, setComment] = useState('');
+  const [rating, setRating] = useState(0);
+  const [favorites, setFavorites] = useState([]);
 
-  // Fetch venue data
+  // Fetch venue data and user favorites
   useEffect(() => {
-    const fetchVenues = async () => {
+    const fetchData = async () => {
       try {
-        const response = await venueApi.getAll();
-        setVenues(response.data);
+        const [venuesResponse, favoritesResponse] = await Promise.all([
+          venueApi.getAll(),
+          isAuthenticated ? authApi.getFavorites() : Promise.resolve({ data: [] })
+        ]);
+        setVenues(venuesResponse.data);
+        setFavorites(favoritesResponse.data || []);
         setLoading(false);
       } catch (err) {
-        setError('Failed to load venue data');
+        setError('Failed to load data');
         setLoading(false);
       }
     };
 
-    fetchVenues();
-  }, []);
+    fetchData();
+  }, [isAuthenticated]);
 
   // Check user permissions
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       setIsAuthenticated(true);
-      const checkAdmin = async () => {
-        try {
-          const response = await authApi.checkAdmin();
-          setIsAdmin(response.data.isAdmin);
-        } catch (err) {
-          console.error('Failed to check admin permissions:', err);
-        }
-      };
-      checkAdmin();
+      setIsAdmin(authApi.isAdmin());
     }
   }, []);
 
@@ -133,6 +143,44 @@ function LocationList() {
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
     setPage(0);
+  };
+
+  const handleCommentSubmit = async () => {
+    try {
+      await venueApi.addComment(selectedVenue._id, {
+        comment,
+        rating,
+      });
+      
+      // Refresh venue data to show new comment
+      const response = await venueApi.getAll();
+      setVenues(response.data);
+      
+      setCommentDialogOpen(false);
+      setComment('');
+      setRating(0);
+    } catch (err) {
+      console.error('Failed to submit comment:', err);
+    }
+  };
+
+  const handleFavoriteToggle = async (venueId) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      if (favorites.includes(venueId)) {
+        await authApi.removeFavorite(venueId);
+        setFavorites(favorites.filter(id => id !== venueId));
+      } else {
+        await authApi.addFavorite(venueId);
+        setFavorites([...favorites, venueId]);
+      }
+    } catch (err) {
+      console.error('Failed to update favorites:', err);
+    }
   };
 
   if (loading) {
@@ -217,6 +265,27 @@ function LocationList() {
                     >
                       <MapIcon />
                     </IconButton>
+                    {isAuthenticated && (
+                      <>
+                        <IconButton
+                          onClick={() => {
+                            setSelectedVenue(venue);
+                            setCommentDialogOpen(true);
+                          }}
+                          color="primary"
+                          title="Add Comment"
+                        >
+                          <CommentIcon />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => handleFavoriteToggle(venue._id)}
+                          color="primary"
+                          title={favorites.includes(venue._id) ? "Remove from Favorites" : "Add to Favorites"}
+                        >
+                          {favorites.includes(venue._id) ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                        </IconButton>
+                      </>
+                    )}
                     {isAdmin && (
                       <>
                         <IconButton
@@ -277,6 +346,60 @@ function LocationList() {
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleSubmit} variant="contained">
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)}>
+        <DialogTitle>Add Comment</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 2 }}>
+            <Typography component="legend">Rating</Typography>
+            <Rating
+              value={rating}
+              onChange={(event, newValue) => {
+                setRating(newValue);
+              }}
+            />
+          </Box>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Your Comment"
+            fullWidth
+            multiline
+            rows={4}
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
+          {selectedVenue?.comments && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6">Previous Comments</Typography>
+              <List>
+                {selectedVenue.comments.map((comment, index) => (
+                  <ListItem key={index}>
+                    <ListItemAvatar>
+                      <Avatar>{comment.username[0]}</Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography component="span">{comment.username}</Typography>
+                          <Rating value={comment.rating} readOnly size="small" sx={{ ml: 1 }} />
+                        </Box>
+                      }
+                      secondary={comment.comment}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCommentSubmit} variant="contained">
+            Submit
           </Button>
         </DialogActions>
       </Dialog>
