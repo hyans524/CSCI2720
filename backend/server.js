@@ -90,7 +90,7 @@ app.post('/api/init-data', async (req, res) => {
                         console.error('Error saving event:', event.eventId, error);
                     }
                 } else {
-                    console.warn('Skipping event due to missing venue:', event.eventId);
+
                 }
             }
         }
