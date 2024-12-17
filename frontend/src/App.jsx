@@ -11,6 +11,7 @@ import LocationList from './pages/LocationList';
 import LocationMap from './pages/LocationMap';
 import LocationDetail from './pages/LocationDetail';
 import Login from './pages/Login';
+import EventList from './pages/EventList';
 
 // Theme configuration
 const lightTheme = createTheme({
@@ -53,6 +54,7 @@ function App() {
             <Route path="/map" element={<LocationMap />} />
             <Route path="/location/:id" element={<LocationDetail />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/events" element={<EventList />} />
           </Routes>
         </MainLayout>
       </Router>

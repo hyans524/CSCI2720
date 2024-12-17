@@ -75,6 +75,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
   };
 
   const navItems = [
+    { path: '/events', label: 'Event List', icon: <ListIcon /> },
     { path: '/locations', label: 'Venue List', icon: <ListIcon /> },
     { path: '/map', label: 'Map View', icon: <MapIcon /> },
   ];
