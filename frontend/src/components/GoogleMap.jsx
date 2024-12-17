@@ -25,21 +25,6 @@ import {
 import { venueApi, authApi } from '../services/api';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-const MAP_ID = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID;
-
-// Map style configuration
-const MAP_STYLES = [
-  {
-    featureType: 'poi',
-    elementType: 'labels',
-    stylers: [{ visibility: 'on' }],
-  },
-  {
-    featureType: 'transit',
-    elementType: 'labels',
-    stylers: [{ visibility: 'on' }],
-  },
-];
 
 function GoogleMapComponent({
   markers = [],
@@ -167,28 +152,11 @@ function GoogleMapComponent({
         // Load Google Maps using shared loader
         const google = await loader.load();
 
-        // Custom map controls configuration
-        const customMapControls = {
-          mapTypeControlOptions: {
-            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU,
-            position: google.maps.ControlPosition.TOP_RIGHT,
-            mapTypeIds: ['roadmap', 'satellite'],
-          },
-          zoomControlOptions: {
-            position: google.maps.ControlPosition.TOP_RIGHT,
-          },
-          streetViewControl: false,
-          fullscreenControl: false,
-        };
-
         // Initialize map with options
         const mapOptions = {
           ...DEFAULT_MAP_CONFIG,
-          ...customMapControls,
           center: center,
           zoom: zoom,
-          mapId: MAP_ID,
-          styles: MAP_STYLES,
         };
 
         const map = new google.maps.Map(container, mapOptions);
@@ -210,8 +178,8 @@ function GoogleMapComponent({
 
         markers.forEach(location => {
           // Validate coordinates
-          const lat = parseFloat(location.lat);
-          const lng = parseFloat(location.lng);
+          const lat = parseFloat(location.latitude || location.lat);
+          const lng = parseFloat(location.longitude || location.lng);
           
           if (!isValidCoordinates(lat, lng)) {
             console.error('Invalid coordinates for location:', location);
@@ -234,7 +202,7 @@ function GoogleMapComponent({
           const marker = new AdvancedMarkerElement({
             map,
             position,
-            title: location.name,
+            title: location.venueName || location.name,
             content: pinElement.element,
           });
 
@@ -244,7 +212,7 @@ function GoogleMapComponent({
           }
 
           // Add click event handler
-          marker.addEventListener('click', () => {
+          marker.addEventListener('gmp-click', () => {
             infoWindow.setContent(createInfoWindowContent(location));
             infoWindow.open(map, marker);
 
@@ -307,7 +275,7 @@ function GoogleMapComponent({
     return !isNaN(lat) && !isNaN(lng) && 
            lat >= -90 && lat <= 90 && 
            lng >= -180 && lng <= 180 &&
-           lat >= 22.1 && lat <= 22.5 && // Hong Kong latitude range
+           lat >= 22.1 && lat <= 22.6 && // Extended Hong Kong latitude range
            lng >= 113.8 && lng <= 114.4;  // Hong Kong longitude range
   };
 

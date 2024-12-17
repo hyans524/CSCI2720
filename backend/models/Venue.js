@@ -6,6 +6,10 @@ const commentSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
+    username: {
+        type: String,
+        required: true
+    },
     comment: {
         type: String,
         required: true
@@ -52,18 +56,38 @@ const venueSchema = new mongoose.Schema({
     averageRating: {
         type: Number,
         default: 0
+    },
+    totalComments: {
+        type: Number,
+        default: 0
     }
 });
 
-// Calculate average rating before saving
+// Calculate average rating and total comments before saving
 venueSchema.pre('save', function(next) {
     if (this.comments.length > 0) {
         const totalRating = this.comments.reduce((sum, comment) => sum + comment.rating, 0);
-        this.averageRating = totalRating / this.comments.length;
+        this.averageRating = (totalRating / this.comments.length).toFixed(1);
+        this.totalComments = this.comments.length;
     } else {
         this.averageRating = 0;
+        this.totalComments = 0;
     }
     next();
 });
+
+// Get recent comments
+venueSchema.methods.getRecentComments = function(limit = 5) {
+    return this.comments
+        .sort((a, b) => b.createdAt - a.createdAt)
+        .slice(0, limit);
+};
+
+// Get user's comment for this venue
+venueSchema.methods.getUserComment = function(userId) {
+    return this.comments.find(comment => 
+        comment.user.toString() === userId.toString()
+    );
+};
 
 module.exports = mongoose.model('Venue', venueSchema); 

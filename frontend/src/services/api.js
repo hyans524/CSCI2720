@@ -70,6 +70,11 @@ export const authApi = {
     getFavorites: () => api.get('/auth/favorites'),
     addFavorite: (venueId) => api.post(`/auth/favorites/${venueId}`),
     removeFavorite: (venueId) => api.delete(`/auth/favorites/${venueId}`),
+    getComments: () => api.get('/auth/comments'),
+    getVenueComments: (venueId) => api.get(`/auth/comments/venue/${venueId}`),
+    addComment: (data) => api.post('/auth/comments', data),
+    updateComment: (commentId, data) => api.put(`/auth/comments/${commentId}`, data),
+    deleteComment: (commentId) => api.delete(`/auth/comments/${commentId}`),
 };
 
 export default api; 
