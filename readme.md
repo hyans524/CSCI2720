@@ -110,9 +110,6 @@ Backend:
     - `App.css`: Global styles
     - `App.jsx`: Main app component
     - `main.jsx`: App entry point
-  - `index.html`: HTML template
-  - `package.json`: Frontend dependencies
-  - `vite.config.js`: Vite configuration
 
 - `start-servers.bat`: Script to start both servers
 
