@@ -34,19 +34,22 @@ Frontend:
 - Material-UI 
 - Google Maps API
 - React Router
+- ESLint for code quality
 
 Backend:
 - Node.js
 - Express
 - MongoDB
 - JWT Authentication
+- CORS enabled
+- XML Parser for data import
 
 ## Installation Guide
 
 1. System Requirements:
    - Node.js (v14 or higher)
    - npm or yarn
-   - MongoDB
+   - MongoDB (running on port 27017)
    - Google Maps API key
 
 2. Setup Steps:
@@ -55,13 +58,22 @@ Backend:
       git clone https://github.com/hyans524/CSCI2720/
       ```
 
-   b) Start servers:
+   b) Configure environment:
+      - Set up Google Maps API key
+      - Configure MongoDB connection
+      (already set by students)
+
+   c) Start servers:
       ```bash
       start-servers.bat
       ```
+      This script will:
+      - Install all dependencies automatically
+      - Start MongoDB connection
+      - Launch backend server
+      - Launch frontend development server
 
-   c) Access application:
-      - Backend: http://localhost:5000
+   d) Access application:
       - Frontend: http://localhost:5173
 
 ## Project Structure
@@ -69,48 +81,49 @@ Backend:
 ```
 .
 ├── backend/
-│   ├── config/
-│   ├── controllers/
-│   ├── models/
-│   ├── routes/
-│   ├── app.js
-│   └── server.js
+│   ├── data/              # Seed data and JSON files
+│   ├── middleware/        # Custom middleware functions
+│   ├── models/           # MongoDB models
+│   ├── routes/           # API route definitions
+│   ├── utils/            # Utility functions and helpers
+│   ├── .env              # Environment variables
+│   ├── server.js         # Main server entry point
+│   └── package.json      # Backend dependencies
 ├── frontend/
-│   ├── public/
+│   ├── public/           # Static files
 │   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   ├── App.css
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── index.html
-│   ├── package.json
-│   └── vite.config.js
-├── .gitignore
-├── package.json
-├── readme.md
-└── start-servers.bat
+│   │   ├── assets/       # Images and static resources
+│   │   ├── components/   # Reusable UI components
+│   │   ├── layouts/      # Page layout templates
+│   │   ├── pages/        # Page components
+│   │   ├── services/     # API services
+│   │   ├── App.css       # App-wide styles
+│   │   ├── index.css     # Global styles
+│   │   ├── App.jsx       # Main app component
+│   │   └── main.jsx      # Entry point
+│   ├── index.html        # HTML template
+│   ├── .env              # Frontend environment variables
+│   ├── package.json      # Frontend dependencies
+│   ├── vite.config.js    # Vite configuration
+│   └── eslint.config.js  # ESLint configuration
+├── .gitignore            # Git ignore rules
+├── package.json          # Root dependencies
+├── readme.md             # Project documentation
+└── start-servers.bat     # Server startup script
 ```
 
-- `backend/`: Contains the backend server code
-  - `config/`: Configuration files
-  - `controllers/`: Route handlers
-  - `models/`: Database models
-  - `routes/`: API routes
-  - `app.js`: Express app setup
-  - `server.js`: Server entry point
+## Environment Variables
 
-- `frontend/`: Contains the frontend client code
-  - `public/`: Static assets
-  - `src/`: Source code
-    - `components/`: Reusable components
-    - `pages/`: Page components
-    - `services/`: API services and utilities
-    - `App.css`: Global styles
-    - `App.jsx`: Main app component
-    - `main.jsx`: App entry point
+### Backend (.env)
+```
+MONGODB_URI=mongodb://127.0.0.1:27017/venue-events
+PORT=5000
+JWT_SECRET=jwt_secret_key
+```
 
-- `start-servers.bat`: Script to start both servers
-
+### Frontend (.env)
+```
+VITE_GOOGLE_MAPS_API_KEY=api_key
+VITE_API_URL=http://localhost:5000
+```
 
