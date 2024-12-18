@@ -36,6 +36,7 @@ function GoogleMapComponent({
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
+  const userLocationMarkerRef = useRef(null);
   const [error, setError] = useState(null);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState(null);
@@ -164,6 +165,21 @@ function GoogleMapComponent({
     `;
   };
 
+  const createUserLocationPin = () => {
+    const pin = document.createElement('div');
+    pin.innerHTML = `
+      <div style="
+        width: 24px;
+        height: 24px;
+        background: #4285F4;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 6px rgba(0,0,0,.3);
+      "></div>
+    `;
+    return pin;
+  };
+
   useEffect(() => {
     const initMap = async () => {
       try {
@@ -191,7 +207,37 @@ function GoogleMapComponent({
           ...options,
           center: center,
           zoom: zoom,
+          streetViewControl: false,
+          mapTypeControl: false,
+          zoomControl: true,
+          fullscreenControl: false,
+          zoomControlOptions: {
+            position: google.maps.ControlPosition.RIGHT_BOTTOM
+          },
+          scaleControl: false,
+          rotateControl: false,
+          streetViewControl: false,
+          mapTypeControlOptions: {
+            style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+          },
+          myLocationButton: true,
+          myLocationControl: true
         };
+
+        // 如果沒有設定 mapId，才添加 styles
+        if (!DEFAULT_MAP_CONFIG.mapId) {
+          mapOptions.styles = [
+            {
+              featureType: "poi.business",
+              stylers: [{ visibility: "off" }],
+            },
+            {
+              featureType: "transit",
+              elementType: "labels.icon",
+              stylers: [{ visibility: "off" }],
+            }
+          ];
+        }
 
         const map = new google.maps.Map(container, mapOptions);
         mapInstanceRef.current = map;
@@ -268,6 +314,129 @@ function GoogleMapComponent({
 
           markersRef.current.push(marker);
         });
+
+        map.setOptions({
+          fullscreenControl: false,
+          streetViewControl: false,
+          mapTypeControl: false,
+          scaleControl: false,
+          rotateControl: false,
+          panControl: false,
+          zoomControl: true,
+          zoomControlOptions: {
+            position: google.maps.ControlPosition.RIGHT_BOTTOM
+          },
+          myLocationButton: true,
+          myLocationControl: true
+        });
+
+        // Add location button
+        const locationButton = document.createElement("button");
+        locationButton.className = "custom-map-control-button";
+        locationButton.style.cssText = `
+          background-color: white;
+          border: none;
+          box-shadow: rgba(0, 0, 0, 0.3) 0px 1px 4px -1px;
+          margin: 10px;
+          padding: 9px;
+          border-radius: 50%;
+          cursor: pointer;
+          width: 40px;
+          height: 40px;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        `;
+
+        locationButton.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="#666666">
+            <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/>
+          </svg>
+        `;
+
+        // Add hover effects
+        locationButton.onmouseover = () => {
+          locationButton.style.backgroundColor = '#f5f5f5';
+        };
+
+        locationButton.onmouseout = () => {
+          locationButton.style.backgroundColor = 'white';
+        };
+
+        locationButton.addEventListener("click", () => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              async (position) => {
+                const pos = {
+                  lat: position.coords.latitude,
+                  lng: position.coords.longitude,
+                };
+
+                // Check if location is within Hong Kong bounds
+                if (pos.lat >= 22.1 && pos.lat <= 22.6 && 
+                    pos.lng >= 113.8 && pos.lng <= 114.4) {
+                  
+                  map.setCenter(pos);
+                  map.setZoom(MAP_ZOOM_LEVELS.STREET);
+                  
+                  // Remove existing user location marker if it exists
+                  if (userLocationMarkerRef.current) {
+                    userLocationMarkerRef.current.map = null;
+                  }
+                  
+                  // Create new marker
+                  const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+                  const userLocationPin = document.createElement('div');
+                  userLocationPin.innerHTML = `
+                    <div style="
+                      width: 24px;
+                      height: 24px;
+                      background: #4285F4;
+                      border: 2px solid #ffffff;
+                      border-radius: 50%;
+                      box-shadow: 0 2px 6px rgba(0,0,0,.3);
+                    "></div>
+                  `;
+
+                  // Create and store the new marker
+                  userLocationMarkerRef.current = new AdvancedMarkerElement({
+                    map,
+                    position: pos,
+                    content: userLocationPin,
+                    title: "Your Location"
+                  });
+                } else {
+                  alert("Sorry, your location is outside of Hong Kong");
+                }
+              },
+              (error) => {
+                switch(error.code) {
+                  case error.PERMISSION_DENIED:
+                    alert("Please enable location services to use this feature");
+                    break;
+                  case error.POSITION_UNAVAILABLE:
+                    alert("Location information is unavailable");
+                    break;
+                  case error.TIMEOUT:
+                    alert("Location request timed out");
+                    break;
+                  default:
+                    alert("An unknown error occurred");
+                }
+              },
+              {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+              }
+            );
+          } else {
+            alert("Error: Your browser doesn't support geolocation.");
+          }
+        });
+
+        map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(locationButton);
 
       } catch (err) {
         console.error('Error initializing map:', err);

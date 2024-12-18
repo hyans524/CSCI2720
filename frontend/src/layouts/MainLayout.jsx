@@ -80,7 +80,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
     { path: '/map', label: 'Map View', icon: <MapIcon /> },
     { path: '/events', label: 'Event List', icon: <ListIcon /> },
     { path: '/favorites', label: 'Favourite', icon: <FavoriteIcon /> },
-    isAdmin ? {path: '/admin', label: 'User List', icon: <ListIcon /> } : {}
+    ...(isAdmin ? [{ path: '/admin', label: 'User List', icon: <ListIcon /> }] : [])
   ];
 
   return (
@@ -123,18 +123,20 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
           </Typography>
 
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {navItems.map((item) => (
-              <Button
-                key={item.path}
-                component={RouterLink}
-                to={!isAuthenticated && item.path === '/favorites' ? '/login' : item.path}
-                startIcon={item.icon}
-                sx={commonNavButtonStyles}
-                className={location.pathname === item.path ? 'active' : ''}
-              >
-                {item.label}
-              </Button>
-            ))}
+            {navItems
+              .filter(item => item.path)
+              .map((item) => (
+                <Button
+                  key={item.path}
+                  component={RouterLink}
+                  to={!isAuthenticated && item.path === '/favorites' ? '/login' : item.path}
+                  startIcon={item.icon}
+                  sx={commonNavButtonStyles}
+                  className={location.pathname === item.path ? 'active' : ''}
+                >
+                  {item.label}
+                </Button>
+              ))}
 
             <IconButton
               color="inherit"
