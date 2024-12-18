@@ -144,12 +144,13 @@ function UserList() {
     try {
       if (editingUser) {
         await userApi.update(editingUser._id, formData);
-        setUsers(users.map(user =>
-          user._id === editingUser._id ? { ...user, ...formData } : user
-        ));
+        const usersResponse = await userApi.getAll();
+        setUsers(usersResponse.data);
+
       } else {
         const response = await userApi.create(formData);
-        setUsers([...users, response.data]);
+        const usersResponse = await userApi.getAll();
+        setUsers(usersResponse.data);
       }
       setDialogOpen(false);
       setEditingUser(null);
@@ -163,17 +164,17 @@ function UserList() {
     }
   };
 
-  const handleChangePage = (event, newPage) => {
+  const handleChangePage = (user, newPage) => {
     setPage(newPage);
   };
 
-  const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+  const handleChangeRowsPerPage = (user) => {
+    setRowsPerPage(parseInt(user.target.value, 10));
     setPage(0);
   };
 
-  const handleSearchChange = (event) => {
-    setSearchTerm(event.target.value);
+  const handleSearchChange = (user) => {
+    setSearchTerm(user.target.value);
     setPage(0);
   };
 
@@ -311,7 +312,7 @@ function UserList() {
             <TableHead>
               <TableRow>
                 <TableCell>Username</TableCell>
-                <TableCell>Password</TableCell>
+                <TableCell>Password(hashed)</TableCell>
                 <TableCell>isAdmin</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
@@ -323,7 +324,7 @@ function UserList() {
                   <TableRow key={user._id} hover>
                     <TableCell>{user.username}</TableCell>
                     <TableCell>{user.password}</TableCell>
-                    <TableCell>{user.isAdmin === false ? 'False' : 'True'}</TableCell>
+                    <TableCell>{user.isAdmin === false ? 'false' : 'true'}</TableCell>
                     <TableCell align="center">
                       {isAdmin && (
                         <>

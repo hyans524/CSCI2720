@@ -4,6 +4,7 @@ const Event = require('../models/Event');
 const auth = require('../middleware/auth');
 const Venue = require('../models/Venue');
 const User = require('../models/User');
+const bcrypt = require('bcryptjs');
 
 // Get all users
 router.get('/', async (req, res) => {
@@ -30,24 +31,16 @@ router.get('/:id', async (req, res) => {
 
 // Create user (admin only)
 router.post('/', auth.adminAuth, async (req, res) => {
-    const user_max_id = await Event.findOne().sort('-userId').exec()
 
-    const user = new Event({
-        userId: user_max_id.userId + 1,
-        title: req.body.title,
-        description: req.body.description,
-        presenter: req.body.presenter,
-        date: req.body.date
+    const user = new User({
+        username: req.body.username,
+        password: req.body.password,
+        isAdmin: req.body.isAdmin
     });
-    try {
-        const updatedVenue = await Venue.findOne({ venueId: req.body.venueId }).exec();
-        user.venue = updatedVenue
-    }
-    catch (error) { res.status(400).json({ message: "Venue not found" }); }
 
     try {
-        const newEvent = await user.save();
-        res.status(201).json(newEvent);
+        const newUser = await user.save();
+        res.status(201).json(newUser);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
@@ -56,18 +49,16 @@ router.post('/', auth.adminAuth, async (req, res) => {
 // Update user (admin only)
 router.put('/:id', auth.adminAuth, async (req, res) => {
     try {
-        const user = await Event.findById(req.params.id);
+        const user = await User.findById(req.params.id);
         if (!user) {
-            return res.status(404).json({ message: 'Event not found' });
+            return res.status(404).json({ message: 'User not found' });
         }
-        try {
-            const updatedVenue = await Venue.findOne({ venueId: req.body.venueId }).exec();
-            user.venue = updatedVenue
-        }
-        catch (error) { res.status(400).json({ message: "Venue not found" }); }
+
         Object.assign(user, req.body);
-        const updatedEvent = await user.save();
-        res.json(updatedEvent);
+        user.password = await bcrypt.hash(req.body.password, 10)
+
+        const updatedUser = await user.save();
+        res.json(updatedUser);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
@@ -77,12 +68,12 @@ router.put('/:id', auth.adminAuth, async (req, res) => {
 router.delete('/:userId', auth.adminAuth, async (req, res) => {
     console.log(req.params.userId)
     try {
-        const user = await Event.findOne({ userId: req.params.userId }).exec();
+        const user = await User.findOne({ _id: req.params.userId }).exec();
         if (!user) {
-            return res.status(404).json({ message: 'Event not found' });
+            return res.status(404).json({ message: 'User not found' });
         }
-        await Event.deleteOne({ userId: req.params.userId }).exec();
-        res.json({ message: 'Event deleted' });
+        await User.deleteOne({ userId: req.params.userId }).exec();
+        res.json({ message: 'User deleted' });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

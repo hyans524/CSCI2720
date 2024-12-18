@@ -80,6 +80,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
     { path: '/map', label: 'Map View', icon: <MapIcon /> },
     { path: '/events', label: 'Event List', icon: <ListIcon /> },
     { path: '/favorites', label: 'Favourite', icon: <FavoriteIcon /> },
+    isAdmin ? {path: '/admin', label: 'User List', icon: <ListIcon /> } : {}
   ];
 
   return (
