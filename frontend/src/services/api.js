@@ -70,13 +70,38 @@ export const authApi = {
         localStorage.removeItem('token');
         localStorage.removeItem('isAdmin');
         localStorage.removeItem('userId');
+        localStorage.removeItem('username');
     },
     isAuthenticated: () => !!localStorage.getItem('token'),
     isAdmin: () => localStorage.getItem('isAdmin') === 'true',
     getCurrentUserId: () => localStorage.getItem('userId'),
-    getFavorites: () => api.get('/auth/favorites'),
-    addFavorite: (venueId) => api.post(`/auth/favorites/${venueId}`),
-    removeFavorite: (venueId) => api.delete(`/auth/favorites/${venueId}`),
+    getFavorites: async () => {
+        try {
+            const response = await api.get('/auth/favorites');
+            return response;
+        } catch (error) {
+            console.error('Error fetching favorites:', error);
+            throw error;
+        }
+    },
+    addFavorite: async (venueId) => {
+        try {
+            const response = await api.post(`/auth/favorites/${venueId}`);
+            return response;
+        } catch (error) {
+            console.error('Error adding favorite:', error);
+            throw error;
+        }
+    },
+    removeFavorite: async (venueId) => {
+        try {
+            const response = await api.delete(`/auth/favorites/${venueId}`);
+            return response;
+        } catch (error) {
+            console.error('Error removing favorite:', error);
+            throw error;
+        }
+    },
     getComments: () => api.get('/auth/comments'),
     getVenueComments: (venueId) => api.get(`/auth/comments/venue/${venueId}`),
     addComment: (data) => api.post('/auth/comments', data),
