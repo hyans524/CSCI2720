@@ -135,3 +135,6 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
+// __init
+fetch('http://localhost:5000/api/init-data', {method: 'POST'});
