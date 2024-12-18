@@ -6,11 +6,10 @@ git config --global core.autocrlf true
 
 cd backend
 start cmd /k "npm run dev"
-timeout /t 5
+timeout /t 2
 
 cd ../frontend
-start cmd /k "npm run dev"
-
+start cmd /k "npm run dev
 echo Servers started:
 echo Backend: http://localhost:5000
 echo Frontend: http://localhost:5173
