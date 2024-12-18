@@ -35,9 +35,43 @@ app.use('/api/events', eventRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
+// Check if database needs initialization
+app.get('/api/check-init', async (req, res) => {
+    try {
+        const venueCount = await Venue.countDocuments();
+        const eventCount = await Event.countDocuments();
+        const userCount = await User.countDocuments();
+        
+        res.json({
+            needsInit: venueCount === 0 || eventCount === 0 || userCount === 0,
+            counts: {
+                venues: venueCount,
+                events: eventCount,
+                users: userCount
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to check initialization status' });
+    }
+});
+
 // Data initialization endpoint
 app.post('/api/init-data', async (req, res) => {
     try {
+        // Check if initialization is needed
+        const venueCount = await Venue.countDocuments();
+        const eventCount = await Event.countDocuments();
+        const userCount = await User.countDocuments();
+
+        if (venueCount > 0 && eventCount > 0 && userCount > 0) {
+            return res.json({
+                message: 'Database already initialized',
+                venuesCount: venueCount,
+                eventsCount: eventCount,
+                usersCount: userCount
+            });
+        }
+
         // Get existing user favorites before clearing data
         const users = await User.find({}, { favorites: 1 });
         const userFavorites = users.reduce((map, user) => {
@@ -135,6 +169,3 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
-// __init
-fetch('http://localhost:5000/api/init-data', {method: 'POST'});
