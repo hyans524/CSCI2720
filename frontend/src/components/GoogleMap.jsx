@@ -284,16 +284,7 @@ function GoogleMapComponent({
       myLocationControl: true
     };
 
-    // Add Google Maps specific configurations only when the Google object is available
-    if (window.google?.maps) {
-      config.zoomControlOptions = {
-        position: window.google.maps.ControlPosition.RIGHT_BOTTOM
-      };
-      config.mapTypeControlOptions = {
-        style: window.google.maps.MapTypeControlStyle.DROPDOWN_MENU
-      };
-    }
-
+    // Remove direct access to google.maps
     return config;
   }, [options, center, zoom]);
 
@@ -340,6 +331,7 @@ function GoogleMapComponent({
         if (!isMounted) return;
 
         if (!mapInstanceRef.current && mapRef.current) {
+          // Move Google Maps specific configurations here
           const finalConfig = {
             ...mapConfig,
             zoomControlOptions: {
@@ -396,7 +388,10 @@ function GoogleMapComponent({
             marker.content.style.animation = 'bounce 0.5s infinite alternate';
           }
 
-          marker.addListener('click', () => handleMarkerClick(location, marker, mapInstanceRef.current));
+          marker.addEventListener('gmp-click', () => 
+            handleMarkerClick(location, marker, mapInstanceRef.current)
+          );
+          
           markersRef.current.push(marker);
         });
       } catch (err) {
