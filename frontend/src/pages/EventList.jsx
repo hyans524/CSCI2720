@@ -122,12 +122,18 @@ function EventList() {
     try {
       if (editingEvent) {
         await eventApi.update(editingEvent._id, formData);
-        setEvents(events.map(event =>
-          event._id === editingEvent._id ? { ...event, ...formData } : event
-        ));
+        const [eventsResponse, favoritesResponse] = await Promise.all([
+          eventApi.getAll(),
+          isAuthenticated ? authApi.getFavorites() : Promise.resolve({ data: [] })
+        ]);
+        setEvents(eventsResponse.data);
       } else {
         const response = await eventApi.create(formData);
-        setEvents([...events, response.data]);
+        const [eventsResponse, favoritesResponse] = await Promise.all([
+          eventApi.getAll(),
+          isAuthenticated ? authApi.getFavorites() : Promise.resolve({ data: [] })
+        ]);
+        setEvents(eventsResponse.data);
       }
       setDialogOpen(false);
       setEditingEvent(null);
