@@ -8,6 +8,7 @@ import {
   AccountCircle as AccountIcon,
   Logout as LogoutIcon,
   AdminPanelSettings as AdminIcon,
+  Favorite as FavoriteIcon,
 } from '@mui/icons-material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
@@ -75,9 +76,10 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
   };
 
   const navItems = [
-    { path: '/events', label: 'Event List', icon: <ListIcon /> },
     { path: '/locations', label: 'Venue List', icon: <ListIcon /> },
     { path: '/map', label: 'Map View', icon: <MapIcon /> },
+    { path: '/events', label: 'Event List', icon: <ListIcon /> },
+    { path: '/favorites', label: 'Favourite', icon: <FavoriteIcon /> },
   ];
 
   return (
@@ -124,7 +126,7 @@ function MainLayout({ children, isDarkMode, toggleDarkMode }) {
               <Button
                 key={item.path}
                 component={RouterLink}
-                to={item.path}
+                to={!isAuthenticated && item.path === '/favorites' ? '/login' : item.path}
                 startIcon={item.icon}
                 sx={commonNavButtonStyles}
                 className={location.pathname === item.path ? 'active' : ''}

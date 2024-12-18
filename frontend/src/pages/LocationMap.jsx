@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Box, 
   Paper, 
@@ -19,6 +19,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import GoogleMap from '../components/GoogleMap';
 import { venueApi, authApi } from '../services/api';
 import { MAP_ZOOM_LEVELS, DEFAULT_MAP_CONFIG } from '../services/googleMaps';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 
 function LocationMap() {
   const [searchParams] = useSearchParams();
@@ -30,8 +32,10 @@ function LocationMap() {
   const [rating, setRating] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mapZoom, setMapZoom] = useState(MAP_ZOOM_LEVELS.TERRITORY);
+  const [favorites, setFavorites] = useState([]);
 
   const mapContainerRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsAuthenticated(authApi.isAuthenticated());
@@ -60,6 +64,21 @@ function LocationMap() {
 
     fetchVenues();
   }, [searchParams]);
+
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (isAuthenticated) {
+        try {
+          const response = await authApi.getFavorites();
+          setFavorites(response.data);
+        } catch (err) {
+          console.error('Failed to fetch favorites:', err);
+        }
+      }
+    };
+
+    fetchFavorites();
+  }, [isAuthenticated]);
 
   const handleCommentSubmit = async () => {
     if (!isAuthenticated) {
@@ -126,6 +145,26 @@ function LocationMap() {
   const handleCloseVenue = () => {
     setSelectedVenue(null);
     setMapZoom(MAP_ZOOM_LEVELS.TERRITORY);
+  };
+
+  const handleFavoriteToggle = async (venue) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      if (favorites.includes(venue._id)) {
+        await authApi.removeFavorite(venue._id);
+        setFavorites(favorites.filter(id => id !== venue._id));
+      } else {
+        await authApi.addFavorite(venue._id);
+        setFavorites([...favorites, venue._id]);
+      }
+    } catch (err) {
+      console.error('Failed to update favorites:', err);
+      alert('Failed to update favorites');
+    }
   };
 
   const mapCenter = selectedVenue
@@ -271,9 +310,21 @@ function LocationMap() {
             </IconButton>
 
             <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                {selectedVenue.venueName}
-              </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6" gutterBottom>
+                  {selectedVenue.venueName}
+                </Typography>
+                <IconButton
+                  onClick={() => handleFavoriteToggle(selectedVenue)}
+                  color="primary"
+                >
+                  {favorites.includes(selectedVenue._id) ? (
+                    <FavoriteIcon color="error" />
+                  ) : (
+                    <FavoriteBorderIcon />
+                  )}
+                </IconButton>
+              </Box>
               <Typography variant="body2" color="text.secondary" paragraph>
                 {selectedVenue.address}
               </Typography>

@@ -27,6 +27,7 @@ import {
   ListItemText,
   ListItemAvatar,
   Avatar,
+  TableSortLabel,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -37,6 +38,7 @@ import {
   Comment as CommentIcon,
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
+  Event as EventIcon,
 } from '@mui/icons-material';
 import { venueApi, authApi } from '../services/api';
 
@@ -61,35 +63,63 @@ function LocationList() {
   const [comment, setComment] = useState('');
   const [rating, setRating] = useState(0);
   const [favorites, setFavorites] = useState([]);
+  const [orderBy, setOrderBy] = useState('eventCount');
+  const [order, setOrder] = useState('desc');
 
   // Fetch venue data and user favorites
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [venuesResponse, favoritesResponse] = await Promise.all([
-          venueApi.getAll(),
-          isAuthenticated ? authApi.getFavorites() : Promise.resolve({ data: [] })
-        ]);
-        setVenues(venuesResponse.data);
-        setFavorites(favoritesResponse.data || []);
+        setLoading(true);
+        // First fetch all venues
+        const venuesResponse = await venueApi.getAll();
+        
+        // Then fetch events for each venue
+        const venuesWithEventCount = await Promise.all(
+          venuesResponse.data.map(async (venue) => {
+            try {
+              const eventsResponse = await venueApi.getEvents(venue._id);
+              return {
+                ...venue,
+                eventCount: eventsResponse.data.length || 0
+              };
+            } catch (err) {
+              console.error(`Failed to fetch events for venue ${venue._id}:`, err);
+              return {
+                ...venue,
+                eventCount: 0
+              };
+            }
+          })
+        );
+
+        setVenues(venuesWithEventCount);
+        
+        if (isAuthenticated) {
+          const favoritesResponse = await authApi.getFavorites();
+          setFavorites(favoritesResponse.data || []);
+        }
+        
         setLoading(false);
       } catch (err) {
-        setError('Failed to load data');
+        console.error('Failed to load data:', err);
+        setError('Failed to load venues');
         setLoading(false);
       }
     };
 
+    const checkAuth = () => {
+      const isAuth = authApi.isAuthenticated();
+      setIsAuthenticated(isAuth);
+      if (isAuth) {
+        setIsAdmin(authApi.isAdmin());
+      }
+      return isAuth;
+    };
+
+    checkAuth();
     fetchData();
   }, [isAuthenticated]);
-
-  // Check user permissions
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsAuthenticated(true);
-      setIsAdmin(authApi.isAdmin());
-    }
-  }, []);
 
   // Admin functions
   const handleEdit = (venue) => {
@@ -171,17 +201,49 @@ function LocationList() {
     }
 
     try {
-      if (favorites.includes(venueId)) {
-        await authApi.removeFavorite(venueId);
-        setFavorites(favorites.filter(id => id !== venueId));
+      let response;
+      const isFavorited = favorites.some(fav => 
+        (typeof fav === 'string' ? fav : fav._id) === venueId
+      );
+      
+      if (isFavorited) {
+        response = await authApi.removeFavorite(venueId);
+        setFavorites(response.data);
       } else {
-        await authApi.addFavorite(venueId);
-        setFavorites([...favorites, venueId]);
+        response = await authApi.addFavorite(venueId);
+        setFavorites(response.data);
       }
     } catch (err) {
       console.error('Failed to update favorites:', err);
+      // Refresh favorites to ensure consistency
+      try {
+        const response = await authApi.getFavorites();
+        setFavorites(response.data || []);
+      } catch (refreshErr) {
+        console.error('Failed to refresh favorites:', refreshErr);
+      }
     }
   };
+
+  const handleSort = (property) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
+
+  const sortedVenues = [...venues].sort((a, b) => {
+    if (orderBy === 'eventCount') {
+      const aCount = a.eventCount || 0;
+      const bCount = b.eventCount || 0;
+      return (order === 'asc' ? 1 : -1) * (aCount - bCount);
+    }
+    return 0;
+  });
+
+  const filteredVenues = sortedVenues.filter(venue =>
+    venue.venueName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    venue.address.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -199,127 +261,135 @@ function LocationList() {
     );
   }
 
-  const filteredVenues = venues.filter(venue =>
-    venue.venueName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    venue.address.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <Box sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4">
           Venue List
         </Typography>
-        {isAdmin && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setEditingVenue(null);
-              setFormData({ venueName: '', address: '' });
-              setDialogOpen(true);
-            }}
-          >
-            Add Venue
-          </Button>
-        )}
       </Box>
 
-      <TextField
-        fullWidth
-        variant="outlined"
-        placeholder="Search venues..."
-        value={searchTerm}
-        onChange={handleSearchChange}
-        sx={{ mb: 2 }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon />
-            </InputAdornment>
-          ),
-        }}
-      />
+      <Paper sx={{ width: '100%', mb: 2 }}>
+        <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <TextField
+            size="small"
+            placeholder="Search venues..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ width: 300 }}
+          />
+          {isAdmin && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setEditingVenue(null);
+                setFormData({ venueName: '', address: '' });
+                setDialogOpen(true);
+              }}
+            >
+              Add Venue
+            </Button>
+          )}
+        </Box>
 
-      <TableContainer component={Paper} sx={{ flexGrow: 1, mb: 2 }}>
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow>
-              <TableCell>Venue Name</TableCell>
-              <TableCell>Address</TableCell>
-              <TableCell align="center">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredVenues
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((venue) => (
-                <TableRow key={venue._id} hover>
-                  <TableCell>{venue.venueName}</TableCell>
-                  <TableCell>{venue.address}</TableCell>
-                  <TableCell align="center">
-                    <IconButton
-                      onClick={() => navigate(`/map?location=${venue._id}`)}
-                      color="primary"
-                      title="View on Map"
-                    >
-                      <MapIcon />
-                    </IconButton>
-                    {isAuthenticated && (
-                      <>
-                        <IconButton
-                          onClick={() => {
-                            setSelectedVenue(venue);
-                            setCommentDialogOpen(true);
-                          }}
-                          color="primary"
-                          title="Add Comment"
-                        >
-                          <CommentIcon />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => handleFavoriteToggle(venue._id)}
-                          color="primary"
-                          title={favorites.includes(venue._id) ? "Remove from Favorites" : "Add to Favorites"}
-                        >
-                          {favorites.includes(venue._id) ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
-                        </IconButton>
-                      </>
+        <TableContainer>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell>Venue Name</TableCell>
+                <TableCell>Address</TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'eventCount'}
+                    direction={order}
+                    onClick={() => handleSort('eventCount')}
+                  >
+                    Events
+                    {orderBy === 'eventCount' && (
+                      <Box component="span" sx={{ display: 'none' }}>
+                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                      </Box>
                     )}
-                    {isAdmin && (
-                      <>
-                        <IconButton
-                          onClick={() => handleEdit(venue)}
-                          color="primary"
-                          title="Edit Venue"
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          onClick={() => handleDelete(venue._id)}
-                          color="error"
-                          title="Delete Venue"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredVenues
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((venue) => (
+                  <TableRow key={venue._id} hover>
+                    <TableCell>{venue.venueName}</TableCell>
+                    <TableCell>{venue.address}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <EventIcon sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
+                        {venue.eventCount || 0}
+                      </Box>
+                    </TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        onClick={() => navigate(`/map?location=${venue._id}`)}
+                        color="primary"
+                        title="View on Map"
+                      >
+                        <MapIcon />
+                      </IconButton>
+                      <IconButton
+                        onClick={() => handleFavoriteToggle(venue._id)}
+                        color="primary"
+                        title={favorites.some(fav => 
+                          (typeof fav === 'string' ? fav : fav._id) === venue._id
+                        ) ? "Remove from Favorites" : "Add to Favorites"}
+                      >
+                        {favorites.some(fav => 
+                          (typeof fav === 'string' ? fav : fav._id) === venue._id
+                        ) ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                      </IconButton>
+                      {isAdmin && (
+                        <>
+                          <IconButton
+                            onClick={() => handleEdit(venue)}
+                            color="primary"
+                            title="Edit Venue"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            onClick={() => handleDelete(venue._id)}
+                            color="error"
+                            title="Delete Venue"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-      <TablePagination
-        component="div"
-        count={filteredVenues.length}
-        page={page}
-        onPageChange={handleChangePage}
-        rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        labelRowsPerPage="Rows per page:"
-      />
+        <TablePagination
+          component="div"
+          count={filteredVenues.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          labelRowsPerPage="Rows per page:"
+        />
+      </Paper>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
         <DialogTitle>
