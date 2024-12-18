@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -26,6 +26,165 @@ import { venueApi, authApi } from '../services/api';
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+// 將地圖渲染部分分離為獨立的記憶化組件
+const MapRenderer = React.memo(({ mapRef, sx }) => {
+  return (
+    <Box
+      ref={mapRef}
+      sx={useMemo(() => ({
+        width: '100%',
+        height: '100%',
+        minHeight: '400px',
+        position: 'relative',
+        bgcolor: '#f0f0f0',
+        border: '1px solid #ccc',
+        ...sx
+      }), [sx])}
+    />
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.sx === nextProps.sx;
+});
+
+MapRenderer.displayName = 'MapRenderer';
+
+// 將評論對話框分離為獨立的記憶化組件
+const CommentDialog = React.memo(({ open, onClose, venue, isAuthenticated }) => {
+  const [localComment, setLocalComment] = useState('');
+  const [localRating, setLocalRating] = useState(0);
+
+  // 使用 useMemo 來記憶化對話框的內容
+  const dialogContent = useMemo(() => (
+    <DialogContent>
+      <Box sx={{ mb: 2 }}>
+        <Typography component="legend">Rating</Typography>
+        <Rating
+          value={localRating}
+          onChange={(event, newValue) => {
+            setLocalRating(newValue);
+          }}
+        />
+      </Box>
+      <TextField
+        autoFocus
+        margin="dense"
+        label="Your Comment"
+        fullWidth
+        multiline
+        rows={4}
+        value={localComment}
+        onChange={(e) => setLocalComment(e.target.value)}
+      />
+      {venue?.comments && venue.comments.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="h6">Previous Comments</Typography>
+          <List>
+            {venue.comments.map((comment, index) => (
+              <ListItem key={index} alignItems="flex-start">
+                <ListItemAvatar>
+                  <Avatar>{comment.user.username[0]}</Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography component="span">{comment.user.username}</Typography>
+                      <Rating value={comment.rating} readOnly size="small" sx={{ ml: 1 }} />
+                    </Box>
+                  }
+                  secondary={comment.comment}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      )}
+    </DialogContent>
+  ), [localComment, localRating, venue?.comments]);
+
+  // 重置表單當對話框關閉時
+  useEffect(() => {
+    if (!open) {
+      setLocalComment('');
+      setLocalRating(0);
+    }
+  }, [open]);
+
+  const handleSubmit = async () => {
+    if (!isAuthenticated) {
+      alert('Please login to add a comment');
+      return;
+    }
+
+    if (!localComment.trim() || !localRating) {
+      alert('Please provide both a comment and rating');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please login to add a comment');
+        return;
+      }
+
+      await venueApi.addComment(venue._id, {
+        comment: localComment.trim(),
+        rating: Number(localRating)
+      });
+      
+      // Refresh venue data
+      const response = await venueApi.getById(venue._id);
+      const updatedVenue = response.data;
+      
+      if (venue.infoWindow) {
+        venue.infoWindow.setContent(
+          createInfoWindowContent(updatedVenue)
+        );
+      }
+      
+      onClose();
+      setLocalComment('');
+      setLocalRating(0);
+
+      alert('Comment added successfully');
+    } catch (err) {
+      console.error('Failed to submit comment:', err);
+      if (err.response?.status === 401) {
+        alert('Please login to add a comment');
+      } else {
+        alert(err.response?.data?.message || 'Failed to add comment. Please try again.');
+      }
+    }
+  };
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={onClose}
+      disableBackdropClick={true}
+      TransitionProps={{
+        enter: true,
+        exit: true
+      }}
+    >
+      <DialogTitle>Add Comment</DialogTitle>
+      {dialogContent}
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={handleSubmit} variant="contained">
+          Submit
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.open === nextProps.open && 
+         prevProps.venue === nextProps.venue &&
+         prevProps.isAuthenticated === nextProps.isAuthenticated;
+});
+
+CommentDialog.displayName = 'CommentDialog';
+
 function GoogleMapComponent({
   markers = [],
   center = HK_DEFAULT_CENTER,
@@ -40,8 +199,6 @@ function GoogleMapComponent({
   const [error, setError] = useState(null);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState(null);
-  const [comment, setComment] = useState('');
-  const [rating, setRating] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mapInstance, setMapInstance] = useState(null);
 
@@ -56,55 +213,10 @@ function GoogleMapComponent({
     }
   }, [mapInstance, zoom, center]);
 
-  const handleCommentSubmit = async () => {
-    if (!isAuthenticated) {
-      alert('Please login to add a comment');
-      return;
-    }
-
-    if (!comment.trim() || !rating) {
-      alert('Please provide both a comment and rating');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Please login to add a comment');
-        return;
-      }
-
-      await venueApi.addComment(selectedVenue._id, {
-        comment: comment.trim(),
-        rating: Number(rating)
-      });
-      
-      // Refresh venue data
-      const response = await venueApi.getById(selectedVenue._id);
-      const updatedVenue = response.data;
-      
-      // Update info window content
-      if (selectedVenue.infoWindow) {
-        selectedVenue.infoWindow.setContent(
-          createInfoWindowContent(updatedVenue)
-        );
-      }
-      
-      setCommentDialogOpen(false);
-      setComment('');
-      setRating(0);
-
-      // Show success message
-      alert('Comment added successfully');
-    } catch (err) {
-      console.error('Failed to submit comment:', err);
-      if (err.response?.status === 401) {
-        alert('Please login to add a comment');
-      } else {
-        alert(err.response?.data?.message || 'Failed to add comment. Please try again.');
-      }
-    }
-  };
+  // 使用 useCallback 來記憶化回調函數
+  const handleDialogClose = useCallback(() => {
+    setCommentDialogOpen(false);
+  }, []);
 
   const createInfoWindowContent = (location) => {
     const addCommentButton = isAuthenticated ? 
@@ -216,7 +328,7 @@ function GoogleMapComponent({
           },
           scaleControl: false,
           rotateControl: false,
-          streetViewControl: false,
+          panControl: false,
           mapTypeControlOptions: {
             style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
           },
@@ -224,7 +336,7 @@ function GoogleMapComponent({
           myLocationControl: true
         };
 
-        // 如果沒有設定 mapId，才添加 styles
+
         if (!DEFAULT_MAP_CONFIG.mapId) {
           mapOptions.styles = [
             {
@@ -466,71 +578,14 @@ function GoogleMapComponent({
 
   return (
     <Box sx={{ position: 'relative', width: '100%', height: '100%', minHeight: '400px' }}>
-      <Box
-        ref={mapRef}
-        sx={{
-          width: '100%',
-          height: '100%',
-          minHeight: '400px',
-          position: 'relative',
-          bgcolor: '#f0f0f0',
-          border: '1px solid #ccc',
-        }}
+      <MapRenderer mapRef={mapRef} />
+      
+      <CommentDialog 
+        open={commentDialogOpen} 
+        onClose={handleDialogClose}
+        venue={selectedVenue}
+        isAuthenticated={isAuthenticated}
       />
-
-      <Dialog open={commentDialogOpen} onClose={() => setCommentDialogOpen(false)}>
-        <DialogTitle>Add Comment</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 2 }}>
-            <Typography component="legend">Rating</Typography>
-            <Rating
-              value={rating}
-              onChange={(event, newValue) => {
-                setRating(newValue);
-              }}
-            />
-          </Box>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Your Comment"
-            fullWidth
-            multiline
-            rows={4}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-          />
-          {selectedVenue?.comments && selectedVenue.comments.length > 0 && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="h6">Previous Comments</Typography>
-              <List>
-                {selectedVenue.comments.map((comment, index) => (
-                  <ListItem key={index} alignItems="flex-start">
-                    <ListItemAvatar>
-                      <Avatar>{comment.user.username[0]}</Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography component="span">{comment.user.username}</Typography>
-                          <Rating value={comment.rating} readOnly size="small" sx={{ ml: 1 }} />
-                        </Box>
-                      }
-                      secondary={comment.comment}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCommentDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleCommentSubmit} variant="contained">
-            Submit
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
