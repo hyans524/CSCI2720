@@ -1,3 +1,19 @@
+We declare that the lab work here submitted is original 
+except for source material explicitly acknowledged, 
+and that the same or closely related material has not been 
+previously submitted for another course. 
+I also acknowledge that I am aware of University policy and 
+regulations on honesty in academic work, and of the disciplinary 
+guidelines and procedures applicable to breaches of such 
+policy and regulations, as contained in the website. 
+ 
+University Guideline on Academic Honesty: 
+https://www.cuhk.edu.hk/policy/academichonesty/ 
+ 
+Group Number : <27> 
+Class/Section : <CSCI2720> 
+Date : <2024-11-18>
+
 # Cultural Events Venue Management System
 
 A web application for browsing and managing cultural event venues in Hong Kong.
