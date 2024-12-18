@@ -13,6 +13,7 @@ import LocationDetail from './pages/LocationDetail';
 import Login from './pages/Login';
 import EventList from './pages/EventList';
 import FavoritesList from './pages/FavoritesList';
+import UserList from './pages/UserList';
 
 // Theme configuration
 const lightTheme = createTheme({
@@ -57,6 +58,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/events" element={<EventList />} />
             <Route path="/favorites" element={<FavoritesList />} />
+            <Route path="/admin" element={<UserList />} />
           </Routes>
         </MainLayout>
       </Router>

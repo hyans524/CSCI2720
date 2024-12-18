@@ -63,6 +63,15 @@ export const eventApi = {
     delete: (id) => api.delete(`/events/${id}`),
 };
 
+// User-related APIs
+export const userApi = {
+    getAll: () => api.get('/users'),
+    getById: (id) => api.get(`/users/${id}`),
+    create: (data) => api.post('/users', data),
+    update: (id, data) => api.put(`/users/${id}`, data),
+    delete: (id) => api.delete(`/users/${id}`),
+};
+
 // Auth-related APIs
 export const authApi = {
     login: (credentials) => api.post('/auth/login', credentials),

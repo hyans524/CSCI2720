@@ -27,11 +27,13 @@ const db = mongoose.connection;
 const venueRoutes = require('./routes/venues');
 const eventRoutes = require('./routes/events');
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 
 // Use routes
 app.use('/api/venues', venueRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
 // Data initialization endpoint
 app.post('/api/init-data', async (req, res) => {
