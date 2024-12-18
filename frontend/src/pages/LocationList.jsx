@@ -44,6 +44,7 @@ import {
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
   Event as EventIcon,
+  Info as InfoIcon 
 } from '@mui/icons-material';
 import { venueApi, authApi } from '../services/api';
 
@@ -466,7 +467,13 @@ function LocationList() {
                 .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                 .map((venue) => (
                   <TableRow key={venue._id} hover>
-                    <TableCell>{venue.venueName}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <InfoIcon sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} 
+                                  onClick={() => navigate(`/location/${venue.venueId}`)}/>
+                        {venue.venueName}
+                      </Box>
+                    </TableCell>
                     <TableCell>{venue.address}</TableCell>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
